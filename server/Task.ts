@@ -1,14 +1,15 @@
 export type TaskStatus = 'Backlog' | 'To Do' | 'In Progress' | 'In Review' | 'Done';
 
 export class Task {
-    private name: string;
+    public name: string;
     private description: string;
-    private duration: number;
+    public duration: number;
     private roadmap: string;
     private assignee: string;
-    private startDate: Date;
+    public startDate: Date;
     private endDate: Date;
     public taskStatus: TaskStatus;
+    public id: number;
 
     constructor(
         name: string,
@@ -18,6 +19,7 @@ export class Task {
         startDate: Date,
         endDate: Date,
         taskStatus: TaskStatus = 'Backlog',
+        id: number,
     ) {
         this.name = name;
         this.description = description;
@@ -27,6 +29,7 @@ export class Task {
         this.endDate = endDate;
         this.duration = this.calculateDuration();
         this.taskStatus = taskStatus;
+        this.id = id;
     }
 
     getTaskName(): string {
