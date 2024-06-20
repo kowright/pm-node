@@ -64,16 +64,12 @@ let fifthTask = new Task(
     'Design Roadmap',
     'Allisa Joan',
     new Date('2024-08-05'),
-    new Date('2024-08-06'),
+    new Date('2024-08-07'),
     'In Progress',
     5
 );
 
 const tasks = [firstTask, secondTask, thirdTask, fourthTask, fifthTask];
-
-/*app.get("/api", (req: Request, res: Response) => {
-	res.send({ message: `Hello from the Express + TypeScript Server, man! \n Time: ${myDateTime()} Task:${firstTask.getTaskName()}`});
-});*/
 
 app.get("/api", (req: Request, res: Response) => {
     res.send({ message: tasks });
@@ -95,8 +91,8 @@ app.get("/group", (req: Request, res: Response) => {
 app.put("/api/tasks/:id", (req, res) => {
 
     const taskId = parseInt(req.params.id);
-    ///const { name, startDate, duration } = req.body; //Add back taskStatus
-    const { name } = req.body; //Add back taskStatus
+    const { startDate, duration } = req.body; //Add back taskStatus, name
+    //const { name } = req.body; //Add back taskStatus
     // Find the task by ID
     const taskToUpdate = tasks.find(task => task.id === taskId);
 
@@ -104,11 +100,12 @@ app.put("/api/tasks/:id", (req, res) => {
         return res.status(404).json({ error: 'Task not found' });
     }
 
+
     // Update task properties
-    taskToUpdate.name = name;
-    //taskToUpdate.startDate = startDate;
+    //taskToUpdate.name = name;
+    taskToUpdate.startDate = startDate;
     //taskToUpdate.taskStatus = status;
-    //taskToUpdate.duration = duration;
+    taskToUpdate.duration = duration;
 
     // Respond with updated task
     res.json({ message: 'Task updated successfully', task: taskToUpdate });
@@ -116,6 +113,21 @@ app.put("/api/tasks/:id", (req, res) => {
     /*const taskId = parseInt(req.params.id); 
     const { name } = req.body;
     res.json({ message: "good job on task " + taskId + " " + name });*/
+});
+
+app.get("/api/tasks/:id", (req, res) => {
+
+    const taskId = parseInt(req.params.id);
+    //const { name } = req.body; //Add back taskStatus
+    // Find the task by ID
+    const task = tasks.find(task => task.id === taskId);
+
+    if (!task) {
+        return res.status(404).json({ error: 'Task not found' });
+    }
+
+    // Respond with updated task
+    res.json({ message: 'Task updated successfully', task: task });
 });
 
 app.use((err: any, req: Request, res: Response, next: NextFunction) => {
