@@ -1,7 +1,12 @@
 import dotenv from "dotenv";
 import { myDateTime } from './test'
-import { Task, TaskStatus } from './Task';
+import { Task } from './Task';
 import express, { Request, Response, Express, NextFunction } from 'express';
+import Roadmap, { roadmapMap, roadmaps } from "./Roadmap";
+import { taskStatusMap, taskStatus } from './TaskStatus';
+import { assigneeMap, assignees } from './Assignee';
+import { milestones } from "./Milestone";
+import { tags } from './Tag';
 
 dotenv.config();
 
@@ -11,81 +16,75 @@ const port = process.env.PORT || 3001;
 app.use(express.json()); 
 
 app.get("/", (req: Request, res: Response) => {
-	res.send("Express + TypeScript Server");
+	res.send("Kortney's Express + TypeScript Server");
 });
 
 let firstTask = new Task(
     'Create Feature Specification',
     'Outline what the feature needs to do',
-    'Engineering Roadmap',
-    'John Doe',
+    [ roadmapMap['Engineering'] ], 
+    assigneeMap['John Doe'],
     new Date('2024-06-15'),
     new Date('2024-06-30'),
-    "Backlog",
+    taskStatusMap['Backlog'],
     1
 );
 
 let secondTask = new Task(
     'Create Design Doc',
     'Outline what the feature design is',
-    'Design Roadmap',
-    'Jane Donuts',
+    [roadmapMap['Design']], 
+    assigneeMap['Jane Donuts'],
     new Date('2024-06-30'),
     new Date('2024-07-30'),
-    "In Review",
+    taskStatusMap['In Review'],
     2
 );
 
 let thirdTask = new Task(
     'Conduct Design Review',
     'Review All Documentation',
-    'Engineering Roadmap',
-    'Johnny Cakes',
+    [roadmapMap['Engineering']], 
+    assigneeMap['Johnny Cakes'],
     new Date('2024-08-01'),
     new Date('2024-08-02'),
-    'In Progress',
+    taskStatusMap['In Progress'],
     3
 );
 
 let fourthTask = new Task(
     'Create Tasks',
     'Create Tasks In JIRA',
-    'Engineering Roadmap',
-    'Kendrick Drake',
+    [roadmapMap['Engineering']], 
+    assigneeMap['Kendrick Drake'],
     new Date('2024-08-03'),
     new Date('2024-08-04'),
-    'Backlog',
+    taskStatusMap['Backlog'],
     4
 );
 
 let fifthTask = new Task(
     'Assign Tasks',
     'Assign People to Tasks',
-    'Design Roadmap',
-    'Allisa Joan',
+    [ roadmapMap['Engineering'], roadmapMap['Design'] ], 
+    assigneeMap['Allisa Joan'],
     new Date('2024-08-05'),
     new Date('2024-08-07'),
-    'In Progress',
+    taskStatusMap['In Progress'],
     5
 );
 
-const tasks = [firstTask, secondTask, thirdTask, fourthTask, fifthTask];
+const tasks: Task[] = [
+    firstTask,
+    secondTask,
+    thirdTask,
+    fourthTask,
+    fifthTask
+];
 
-app.get("/api", (req: Request, res: Response) => {
+//#region Tasks
+app.get("/api/tasks", (req: Request, res: Response) => {
     res.send({ message: tasks });
-});
-
-app.get("/group", (req: Request, res: Response) => {
-    const tasksByStatus: { [key in TaskStatus]?: Task[] } = tasks.reduce((acc, task) => {
-        const status = task.taskStatus;
-        if (!acc[status]) {
-            acc[status] = [];
-        }
-        acc[status]?.push(task);
-        return acc;
-    }, {} as { [key in TaskStatus]?: Task[] });
-
-    res.send({ message: tasksByStatus });
 });
 
 app.put("/api/tasks/:id", (req, res) => {
@@ -100,7 +99,6 @@ app.put("/api/tasks/:id", (req, res) => {
         return res.status(404).json({ error: 'Task not found' });
     }
 
-
     // Update task properties
     //taskToUpdate.name = name;
     taskToUpdate.startDate = startDate;
@@ -114,21 +112,129 @@ app.put("/api/tasks/:id", (req, res) => {
     const { name } = req.body;
     res.json({ message: "good job on task " + taskId + " " + name });*/
 });
+//#endregion
 
-app.get("/api/tasks/:id", (req, res) => {
-
-    const taskId = parseInt(req.params.id);
-    //const { name } = req.body; //Add back taskStatus
-    // Find the task by ID
-    const task = tasks.find(task => task.id === taskId);
-
-    if (!task) {
-        return res.status(404).json({ error: 'Task not found' });
-    }
-
-    // Respond with updated task
-    res.json({ message: 'Task updated successfully', task: task });
+//#region Milestones
+app.get("/api/milestones", (req, res) => {
+    res.send({ message: milestones }); 
 });
+
+app.put("/api/milestones/:id", (req, res) => {
+    try {
+        const milestoneId = parseInt(req.params.id);
+        const { name, description, taskStatus } = req.body;
+        // Find the task by ID
+        const milestoneToUpdate = milestones.find(ms => ms.id === milestoneId);
+
+        if (!milestoneToUpdate) {
+            return res.status(404).json({ error: 'Milestone not found' });
+        }
+    
+        milestoneToUpdate.name = name;
+        milestoneToUpdate.description = description;
+       // milestoneToUpdate.date = date;
+        milestoneToUpdate.taskStatus = taskStatus;
+      
+        // Respond with status code 200 (OK)
+        res.status(200).json(milestoneToUpdate);
+    } catch (err) {
+        res.status(500).json({ error: 'Internal Server Error' });
+    };
+});
+//#endregion
+
+//#region Assignees
+app.get("/api/assignees", (req, res) => {
+    res.send({ message: assignees });
+});
+
+/*app.put("/api/assignees/:id", (req, res) => { //need to give assignees an id
+    try {
+        const milestoneId = parseInt(req.params.id);
+        const { name, description, taskStatus } = req.body;
+        // Find the task by ID
+        const milestoneToUpdate = milestones.find(ms => ms.id === milestoneId);
+
+        if (!milestoneToUpdate) {
+            return res.status(404).json({ error: 'Milestone not found' });
+        }
+
+        milestoneToUpdate.name = name;
+        milestoneToUpdate.description = description;
+        // milestoneToUpdate.date = date;
+        milestoneToUpdate.taskStatus = taskStatus;
+
+        // Respond with status code 200 (OK)
+        res.status(200).json(milestoneToUpdate);
+    } catch (err) {
+        res.status(500).json({ error: 'Internal Server Error' });
+    };
+});*/
+//#endregion
+
+//#region Tags
+app.get("/api/tags", (req, res) => {
+    res.send({ message: tags });
+});
+
+/*app.put("/api/tags/:id", (req, res) => { //need to give tags id 
+    try {
+        const milestoneId = parseInt(req.params.id);
+        const { name, description, taskStatus } = req.body;
+        // Find the task by ID
+        const milestoneToUpdate = milestones.find(ms => ms.id === milestoneId);
+
+        if (!milestoneToUpdate) {
+            return res.status(404).json({ error: 'Milestone not found' });
+        }
+
+        milestoneToUpdate.name = name;
+        milestoneToUpdate.description = description;
+        // milestoneToUpdate.date = date;
+        milestoneToUpdate.taskStatus = taskStatus;
+
+        // Respond with status code 200 (OK)
+        res.status(200).json(milestoneToUpdate);
+    } catch (err) {
+        res.status(500).json({ error: 'Internal Server Error' });
+    };
+});*/
+//#endregion
+
+//#region Task Status
+app.get("/api/taskstatus", (req, res) => {
+    res.send({ message: taskStatus });
+});
+
+/*app.put("/api/taskstatus/:id", (req, res) => { //need to give taskStatus id
+    try {
+        const milestoneId = parseInt(req.params.id);
+        const { name, description, taskStatus } = req.body;
+        // Find the task by ID
+        const milestoneToUpdate = milestones.find(ms => ms.id === milestoneId);
+
+        if (!milestoneToUpdate) {
+            return res.status(404).json({ error: 'Milestone not found' });
+        }
+
+        milestoneToUpdate.name = name;
+        milestoneToUpdate.description = description;
+        // milestoneToUpdate.date = date;
+        milestoneToUpdate.taskStatus = taskStatus;
+
+        // Respond with status code 200 (OK)
+        res.status(200).json(milestoneToUpdate);
+    } catch (err) {
+        res.status(500).json({ error: 'Internal Server Error' });
+    };
+});*/
+
+//#endregion
+
+app.get("/api/roadmaps", (req, res) => {
+    res.send({ message: roadmaps });
+});
+
 
 app.use((err: any, req: Request, res: Response, next: NextFunction) => {
     console.error(err.stack);

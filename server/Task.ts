@@ -1,11 +1,13 @@
-export type TaskStatus = 'Backlog' | 'To Do' | 'In Progress' | 'In Review' | 'Done';
+import TaskStatus, { taskStatusMap } from './TaskStatus';
+import Roadmap from './Roadmap';
+import Assignee from './Assignee';
 
 export class Task {
     public name: string;
     private description: string;
     public duration: number;
-    private roadmap: string;
-    private assignee: string;
+    private roadmaps: Roadmap[];
+    private assignee: Assignee;
     public startDate: Date;
     private endDate: Date;
     public taskStatus: TaskStatus;
@@ -14,16 +16,16 @@ export class Task {
     constructor(
         name: string,
         description: string,
-        roadmap: string,
-        assignee: string,
+        roadmaps: Roadmap[],
+        assignee: Assignee,
         startDate: Date,
         endDate: Date,
-        taskStatus: TaskStatus = 'Backlog',
+        taskStatus: TaskStatus = taskStatusMap['Backlog'],
         id: number,
     ) {
         this.name = name;
         this.description = description;
-        this.roadmap = roadmap;
+        this.roadmaps = roadmaps;
         this.assignee = assignee;
         this.startDate = startDate;
         this.endDate = endDate;
