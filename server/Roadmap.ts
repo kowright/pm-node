@@ -1,15 +1,13 @@
 import { milestoneMap } from './Milestone';
 import Milestone, { milestones } from './Milestone';
 import Tag, { tagsMap } from './Tag';
+import { UnitType, BaseType } from './UnitTypes';
 
 export type RoadmapList = 'Engineering' | "Design";
 
-type RoadmapType = {
-    name: string;
-    description: string;
+interface RoadmapType extends BaseType {
     milestones: Milestone[];
     tags: Tag[]; 
-    id: number;
 }
 
 export class Roadmap implements RoadmapType {
@@ -18,13 +16,22 @@ export class Roadmap implements RoadmapType {
     milestones: Milestone[];
     tags: Tag[];
     id: number;
+    type: UnitType;
 
-    constructor(name: string, description: string, milestones: Milestone[], tags: Tag[], id: number) {
+    constructor(
+        name: string,
+        description: string,
+        milestones: Milestone[],
+        tags: Tag[],
+        id: number,
+        type: UnitType = "Roadmap",
+    ) {
         this.name = name;
         this.description = description;
         this.milestones = milestones;
         this.tags = tags;
         this.id = id;
+        this.type = type;
     }
 }
 

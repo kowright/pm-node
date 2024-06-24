@@ -1,12 +1,11 @@
 import Roadmap from './Roadmap';
 import { roadmapMap } from './Roadmap';
 import TaskStatus, { taskStatusMap } from './TaskStatus';
-export interface MilestoneInterface {
-    name: string;
-    description: string;
+import { UnitType, BaseType } from './UnitTypes';
+
+export interface MilestoneInterface extends BaseType {
     date: Date;
     taskStatus: TaskStatus;
-    id: number;
 }
 export class Milestone implements MilestoneInterface {
     name: string;
@@ -14,6 +13,7 @@ export class Milestone implements MilestoneInterface {
     date: Date;
     taskStatus: TaskStatus;
     id: number;
+    type: UnitType;
 
     constructor(
         name: string,
@@ -21,12 +21,14 @@ export class Milestone implements MilestoneInterface {
         date: Date,
         taskStatus: TaskStatus,
         id: number,
+        type: UnitType = "Milestone",
     ) {
         this.name = name;
         this.description = description;
         this.date = date;
         this.taskStatus = taskStatus;
         this.id = id;
+        this.type = type;
     }
 
     getMilestoneName(): string {

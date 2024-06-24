@@ -1,6 +1,7 @@
 import TaskStatus, { taskStatusMap } from './TaskStatus';
 import Roadmap from './Roadmap';
 import Assignee from './Assignee';
+import { UnitType } from './UnitTypes';
 
 export class Task {
     public name: string;
@@ -12,6 +13,7 @@ export class Task {
     private endDate: Date;
     public taskStatus: TaskStatus;
     public id: number;
+    public type: UnitType;
 
     constructor(
         name: string,
@@ -22,6 +24,7 @@ export class Task {
         endDate: Date,
         taskStatus: TaskStatus = taskStatusMap['Backlog'],
         id: number,
+        type: UnitType = "Task",
     ) {
         this.name = name;
         this.description = description;
@@ -32,6 +35,7 @@ export class Task {
         this.duration = this.calculateDuration();
         this.taskStatus = taskStatus;
         this.id = id;
+        this.type = type;
     }
 
     getTaskName(): string {
