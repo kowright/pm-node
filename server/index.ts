@@ -3,8 +3,8 @@ import { myDateTime } from './test'
 import { Task } from './Task';
 import express, { Request, Response, Express, NextFunction } from 'express';
 import Roadmap, { roadmapMap, roadmaps } from "./Roadmap";
-import { taskStatusMap, taskStatus } from './TaskStatus';
-import { assigneeMap, assignees } from './Assignee';
+import { taskStatusMap, taskStatusList } from './TaskStatus';
+import Assignee, { assigneeMap, assignees } from './Assignee';
 import { milestones } from "./Milestone";
 import { tags } from './Tag';
 
@@ -88,22 +88,34 @@ app.get("/api/tasks", (req: Request, res: Response) => {
 });
 
 app.put("/api/tasks/:id", (req, res) => {
-
-    const taskId = parseInt(req.params.id);
-    const { startDate, duration } = req.body; //Add back taskStatus, name
+    console.log("someone doing sumthin");
+    const taskId = parseInt(req.params.id); 
+    const { startDate, duration, name, description,endDate, assignee, taskStatus } = req.body; //Add back taskStatus, name
     //const { name } = req.body; //Add back taskStatus
     // Find the task by ID
     const taskToUpdate = tasks.find(task => task.id === taskId);
-
+    console.log("updating task " + name)
     if (!taskToUpdate) {
         return res.status(404).json({ error: 'Task not found' });
     }
 
     // Update task properties
-    //taskToUpdate.name = name;
+    taskToUpdate.name = name;
     taskToUpdate.startDate = startDate;
-    //taskToUpdate.taskStatus = status;
-    taskToUpdate.duration = duration;
+    taskToUpdate.description = description;
+    taskToUpdate.endDate = endDate;
+
+    let assignedAssignee = assignees.find(thisAssignee => assignee.name === thisAssignee.name)
+    if (assignedAssignee != null) { //send back error if is null
+        taskToUpdate.assignee = assignedAssignee
+    }
+
+    let assignedTaskStatus = taskStatusList.find(status => taskStatus.name === status.name)
+    if (assignedTaskStatus != null) { //send back error if it is null
+        taskToUpdate.taskStatus = assignedTaskStatus;
+    }
+
+    taskToUpdate.taskStatus = taskStatus;
 
     // Respond with updated task
     res.json({ message: 'Task updated successfully', task: taskToUpdate });
@@ -111,6 +123,7 @@ app.put("/api/tasks/:id", (req, res) => {
     /*const taskId = parseInt(req.params.id); 
     const { name } = req.body;
     res.json({ message: "good job on task " + taskId + " " + name });*/
+
 });
 //#endregion
 
@@ -203,7 +216,7 @@ app.get("/api/tags", (req, res) => {
 
 //#region Task Status
 app.get("/api/taskstatus", (req, res) => {
-    res.send({ message: taskStatus });
+    res.send({ message: taskStatusList });
 });
 
 /*app.put("/api/taskstatus/:id", (req, res) => { //need to give taskStatus id

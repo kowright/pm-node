@@ -11,7 +11,7 @@ export class Tag implements TagInterface {
     name: string;
     description: string;
     id: number;
-    type: UnitType = "Tag";
+    type: UnitType;
 
     constructor(
         name: string,

@@ -30,7 +30,7 @@ export class TaskStatus implements TaskStatusInterface {
     }
 }
 
-export const taskStatus: TaskStatus[] = [
+export const taskStatusList: TaskStatus[] = [
     new TaskStatus(
         "In Progress",
         "use for tasks that are currently and actively being worked on",

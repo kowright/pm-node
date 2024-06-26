@@ -5,12 +5,12 @@ import { UnitType } from './UnitTypes';
 
 export class Task {
     public name: string;
-    private description: string;
+    public description: string;
     public duration: number;
     private roadmaps: Roadmap[];
-    private assignee: Assignee;
+    public assignee: Assignee;
     public startDate: Date;
-    private endDate: Date;
+    public endDate: Date;
     public taskStatus: TaskStatus;
     public id: number;
     public type: UnitType;
