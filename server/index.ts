@@ -88,22 +88,26 @@ app.get("/api/tasks", (req: Request, res: Response) => {
 });
 
 app.put("/api/tasks/:id", (req, res) => {
-    console.log("someone doing sumthin");
     const taskId = parseInt(req.params.id); 
-    const { startDate, duration, name, description,endDate, assignee, taskStatus } = req.body; //Add back taskStatus, name
+    const { startDate, name, description, endDate, assignee, taskStatus, type, roadmaps } = req.body; //Add back taskStatus, name
     //const { name } = req.body; //Add back taskStatus
     // Find the task by ID
+    if (type != 'Task') {
+        return res.status(404).json({ error: 'This is not a task- check the API endpoint'}); 
+    }
+
     const taskToUpdate = tasks.find(task => task.id === taskId);
     console.log("updating task " + name)
     if (!taskToUpdate) {
-        return res.status(404).json({ error: 'Task not found' });
+        return res.status(404).json({ error: 'Task not found' }); 
     }
-
+    console.log("roadmaps ", roadmaps)
     // Update task properties
     taskToUpdate.name = name;
     taskToUpdate.startDate = startDate;
     taskToUpdate.description = description;
     taskToUpdate.endDate = endDate;
+    taskToUpdate.roadmaps = roadmaps;
 
     let assignedAssignee = assignees.find(thisAssignee => assignee.name === thisAssignee.name)
     if (assignedAssignee != null) { //send back error if is null
@@ -118,7 +122,7 @@ app.put("/api/tasks/:id", (req, res) => {
     taskToUpdate.taskStatus = taskStatus;
 
     // Respond with updated task
-    res.json({ message: 'Task updated successfully', task: taskToUpdate });
+    res.json({ message: '[SERVER] Task updated successfully', task: taskToUpdate }); //make better  
 
     /*const taskId = parseInt(req.params.id); 
     const { name } = req.body;
@@ -135,18 +139,26 @@ app.get("/api/milestones", (req, res) => {
 app.put("/api/milestones/:id", (req, res) => {
     try {
         const milestoneId = parseInt(req.params.id);
-        const { name, description, taskStatus } = req.body;
+        const { name, description, taskStatus, date, type } = req.body;
+
+        if (type != 'Milestone') {
+            return res.status(404).json({ error: 'This is not a milestone- check the API endpoint' });
+        } 
+
         // Find the task by ID
         const milestoneToUpdate = milestones.find(ms => ms.id === milestoneId);
 
         if (!milestoneToUpdate) {
-            return res.status(404).json({ error: 'Milestone not found' });
+            return res.status(404).json({ error: 'Milestone not found- id does not match records' });
         }
-    
+     
         milestoneToUpdate.name = name;
         milestoneToUpdate.description = description;
-       // milestoneToUpdate.date = date;
-        milestoneToUpdate.taskStatus = taskStatus;
+        milestoneToUpdate.date = date;
+        let assignedTaskStatus = taskStatusList.find(status => taskStatus.name === status.name)
+        if (assignedTaskStatus != null) { //send back error if it is null
+            milestoneToUpdate.taskStatus = assignedTaskStatus;
+        }
       
         // Respond with status code 200 (OK)
         res.status(200).json(milestoneToUpdate);

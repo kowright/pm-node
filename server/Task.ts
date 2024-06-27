@@ -4,16 +4,16 @@ import Assignee from './Assignee';
 import { UnitType } from './UnitTypes';
 
 export class Task {
-    public name: string;
-    public description: string;
-    public duration: number;
-    private roadmaps: Roadmap[];
-    public assignee: Assignee;
-    public startDate: Date;
-    public endDate: Date;
-    public taskStatus: TaskStatus;
-    public id: number;
-    public type: UnitType;
+    name: string;
+    description: string;
+    duration: number;
+    roadmaps: Roadmap[];
+    assignee: Assignee;
+    startDate: Date;
+    endDate: Date;
+    taskStatus: TaskStatus;
+    id: number;
+    type: UnitType;
 
     constructor(
         name: string,
