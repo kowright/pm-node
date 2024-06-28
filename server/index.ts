@@ -73,7 +73,7 @@ let fifthTask = new Task(
     taskStatusMap['In Progress'],
     5
 );
-
+ 
 const tasks: Task[] = [
     firstTask,
     secondTask,
@@ -101,7 +101,7 @@ app.put("/api/tasks/:id", (req, res) => {
     if (!taskToUpdate) {
         return res.status(404).json({ error: 'Task not found' }); 
     }
-    console.log("roadmaps ", roadmaps)
+    //console.log("roadmaps ", roadmaps) 
     // Update task properties
     taskToUpdate.name = name;
     taskToUpdate.startDate = startDate;
@@ -113,16 +113,22 @@ app.put("/api/tasks/:id", (req, res) => {
     if (assignedAssignee != null) { //send back error if is null
         taskToUpdate.assignee = assignedAssignee
     }
+    else {
+        return res.status(400).json({ error: 'Invalid task status provided for task' });
+    }
 
-    let assignedTaskStatus = taskStatusList.find(status => taskStatus.name === status.name)
+    let assignedTaskStatus = taskStatusList.find(status => taskStatus === status.name)
     if (assignedTaskStatus != null) { //send back error if it is null
         taskToUpdate.taskStatus = assignedTaskStatus;
     }
+    else {
+        return res.status(400).json({ error: 'Invalid task status provided for milestone' });
+    }
 
-    taskToUpdate.taskStatus = taskStatus;
+    //taskToUpdate.taskStatus = taskStatus; 
 
     // Respond with updated task
-    res.json({ message: '[SERVER] Task updated successfully', task: taskToUpdate }); //make better  
+    res.json({ message: '[SERVER] Task updated successfully', task: taskToUpdate }); //make better from below 
 
     /*const taskId = parseInt(req.params.id); 
     const { name } = req.body;
@@ -155,12 +161,22 @@ app.put("/api/milestones/:id", (req, res) => {
         milestoneToUpdate.name = name;
         milestoneToUpdate.description = description;
         milestoneToUpdate.date = date;
-        let assignedTaskStatus = taskStatusList.find(status => taskStatus.name === status.name)
+     /*   let assignedTaskStatus = taskStatusList.find(status => taskStatus.name === status.name)
         if (assignedTaskStatus != null) { //send back error if it is null
             milestoneToUpdate.taskStatus = assignedTaskStatus;
         }
+        else {
+            console.log("couldn't assign task status")
+        }*/ 
+         
+        let assignedTaskStatus = taskStatusList.find(status => taskStatus === status.name)
+        if (assignedTaskStatus != null) { //send back error if it is null
+            milestoneToUpdate.taskStatus = assignedTaskStatus;
+        }
+        else {
+            return res.status(400).json({ error: 'Invalid task status provided for milestone' });
+        }
       
-        // Respond with status code 200 (OK)
         res.status(200).json(milestoneToUpdate);
     } catch (err) {
         res.status(500).json({ error: 'Internal Server Error' });
@@ -173,28 +189,30 @@ app.get("/api/assignees", (req, res) => {
     res.send({ message: assignees });
 });
 
-/*app.put("/api/assignees/:id", (req, res) => { //need to give assignees an id
+app.put("/api/assignees/:id", (req, res) => {
     try {
-        const milestoneId = parseInt(req.params.id);
-        const { name, description, taskStatus } = req.body;
-        // Find the task by ID
-        const milestoneToUpdate = milestones.find(ms => ms.id === milestoneId);
+        const assigneeId = parseInt(req.params.id);
+        const { name, description, type } = req.body;
 
-        if (!milestoneToUpdate) {
-            return res.status(404).json({ error: 'Milestone not found' });
+        if (type != 'Assignee') {
+            return res.status(404).json({ error: 'This is not an assignee- check the API endpoint' });
         }
 
-        milestoneToUpdate.name = name;
-        milestoneToUpdate.description = description;
-        // milestoneToUpdate.date = date;
-        milestoneToUpdate.taskStatus = taskStatus;
+        const assigneeToUpdate = tags.find(ms => ms.id === assigneeId);
+        if (!assigneeToUpdate) {
+            return res.status(404).json({ error: 'assignee not found- id does not match records' });
+        }
 
-        // Respond with status code 200 (OK)
-        res.status(200).json(milestoneToUpdate);
+        assigneeToUpdate.name = name;
+        assigneeToUpdate.description = description;
+
+        res.status(200).json(assigneeToUpdate);
     } catch (err) {
         res.status(500).json({ error: 'Internal Server Error' });
     };
-});*/
+
+});
+
 //#endregion
 
 //#region Tags
@@ -202,28 +220,28 @@ app.get("/api/tags", (req, res) => {
     res.send({ message: tags });
 });
 
-/*app.put("/api/tags/:id", (req, res) => { //need to give tags id 
+app.put("/api/tags/:id", (req, res) => {
     try {
-        const milestoneId = parseInt(req.params.id);
-        const { name, description, taskStatus } = req.body;
-        // Find the task by ID
-        const milestoneToUpdate = milestones.find(ms => ms.id === milestoneId);
+        const tagId = parseInt(req.params.id);
+        const { name, description, type } = req.body;
 
-        if (!milestoneToUpdate) {
-            return res.status(404).json({ error: 'Milestone not found' });
+        if (type != 'Tag') {
+            return res.status(404).json({ error: 'This is not a tag- check the API endpoint' });
         }
 
-        milestoneToUpdate.name = name;
-        milestoneToUpdate.description = description;
-        // milestoneToUpdate.date = date;
-        milestoneToUpdate.taskStatus = taskStatus;
+        const tagToUpdate = tags.find(ms => ms.id === tagId);
+        if (!tagToUpdate) {
+            return res.status(404).json({ error: 'Tag not found- id does not match records' });
+        }
 
-        // Respond with status code 200 (OK)
-        res.status(200).json(milestoneToUpdate);
+        tagToUpdate.name = name;
+        tagToUpdate.description = description;
+ 
+        res.status(200).json(tagToUpdate);
     } catch (err) {
         res.status(500).json({ error: 'Internal Server Error' });
     };
-});*/
+});
 //#endregion
 
 //#region Task Status
