@@ -1,6 +1,6 @@
 import Roadmap from './Roadmap';
 import { roadmapMap } from './Roadmap';
-import TaskStatus, { taskStatusMap } from './TaskStatus';
+import TaskStatus, { taskStatusMap, TaskStatusType } from './TaskStatus';
 import { UnitType, BaseType } from './UnitTypes';
 
 export interface MilestoneInterface extends BaseType {
@@ -69,5 +69,42 @@ export const milestoneMap: Record<string, Milestone> = {
         2 
     ),
 };
+
+export function createMilestone(name: string, description: string, date: Date, taskStatus: TaskStatus = taskStatusMap['Backlog']): Milestone | null {
+
+    const allMilestoneNames = milestones.map(Milestone => Milestone.name);
+
+    if (allMilestoneNames.includes(name)) {
+        console.error("Milestone name is already taken.")
+        return null;
+    }
+
+    const newID = milestones.length;
+
+    const newTag = new Milestone(name, description, date, taskStatus, newID);
+
+    milestones.push(newTag);
+    //tagsMap[name] = newTag;
+
+    return newTag;
+}
+
+export function deleteMilestone(id: number): boolean {
+
+    let index = -1;
+    index = milestones.findIndex(Milestone => Milestone.id === id);
+
+    if (index === -1) {
+        console.error("Milestone could not be found by id.")
+        return false;
+    }
+
+    if (index !== -1) {
+        milestones.splice(index, 1);
+    }
+
+    return true;
+}
+
 
 export default Milestone;

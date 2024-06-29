@@ -69,5 +69,42 @@ export const roadmapMap: Record<string, Roadmap> = {
     ),
 };
 
+export function createRoadmap(name: string, description: string, milestones: Milestone[], tags: Tag[]): Roadmap | null {
+
+    const allTagNames = roadmaps.map(Roadmap => Roadmap.name);
+
+    if (allTagNames.includes(name)) {
+        console.error("Roadmap name is already taken.")
+        return null;
+    }
+
+    const newID = roadmaps.length;
+
+    const newTag = new Roadmap(name, description, milestones, tags, newID);
+
+    roadmaps.push(newTag);
+    //tagsMap[name] = newTag;
+
+    return newTag;
+}
+
+export function deleteRoadmap(id: number): boolean {
+
+    let index = -1;
+    index = roadmaps.findIndex(Roadmap => Roadmap.id === id);
+
+    if (index === -1) {
+        console.error("Roadmap could not be found by id.")
+        return false;
+    }
+
+    if (index !== -1) {
+        roadmaps.splice(index, 1);
+    }
+
+    return true;
+}
+
+
 export default Roadmap;
 

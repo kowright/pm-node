@@ -1,12 +1,12 @@
 import dotenv from "dotenv";
 import { myDateTime } from './test'
-import { Task } from './Task';
+import { Task, tasks, createTask, deleteTask} from './Task';
 import express, { Request, Response, Express, NextFunction } from 'express';
-import Roadmap, { roadmapMap, roadmaps } from "./Roadmap";
-import { taskStatusMap, taskStatusList } from './TaskStatus';
-import Assignee, { assigneeMap, assignees } from './Assignee';
-import { milestones } from "./Milestone";
-import { tags } from './Tag';
+import Roadmap, { roadmapMap, roadmaps, createRoadmap, deleteRoadmap } from "./Roadmap";
+import { taskStatusMap, taskStatusList, createTaskStatus, deleteTaskStatus } from './TaskStatus';
+import Assignee, { assigneeMap, assignees, createAssignee, deleteAssignee } from './Assignee';
+import { milestones, createMilestone, deleteMilestone } from "./Milestone";
+import { tags, createTag, deleteTag, Tag} from './Tag';
 
 dotenv.config();
 
@@ -19,68 +19,6 @@ app.get("/", (req: Request, res: Response) => {
 	res.send("Kortney's Express + TypeScript Server");
 });
 
-let firstTask = new Task(
-    'Create Feature Specification',
-    'Outline what the feature needs to do',
-    [ roadmapMap['Engineering'] ], 
-    assigneeMap['John Doe'],
-    new Date('2024-06-15'),
-    new Date('2024-06-30'),
-    taskStatusMap['Backlog'],
-    1
-);
-
-let secondTask = new Task(
-    'Create Design Doc',
-    'Outline what the feature design is',
-    [roadmapMap['Design']], 
-    assigneeMap['Jane Donuts'],
-    new Date('2024-06-30'),
-    new Date('2024-07-30'),
-    taskStatusMap['In Review'],
-    2
-);
-
-let thirdTask = new Task(
-    'Conduct Design Review',
-    'Review All Documentation',
-    [roadmapMap['Engineering']], 
-    assigneeMap['Johnny Cakes'],
-    new Date('2024-08-01'),
-    new Date('2024-08-02'),
-    taskStatusMap['In Progress'],
-    3
-);
-
-let fourthTask = new Task(
-    'Create Tasks',
-    'Create Tasks In JIRA',
-    [roadmapMap['Engineering']], 
-    assigneeMap['Kendrick Drake'],
-    new Date('2024-08-03'),
-    new Date('2024-08-04'),
-    taskStatusMap['Backlog'],
-    4
-);
-
-let fifthTask = new Task(
-    'Assign Tasks',
-    'Assign People to Tasks',
-    [ roadmapMap['Engineering'], roadmapMap['Design'] ], 
-    assigneeMap['Allisa Joan'],
-    new Date('2024-08-05'),
-    new Date('2024-08-07'),
-    taskStatusMap['In Progress'],
-    5
-);
- 
-const tasks: Task[] = [
-    firstTask,
-    secondTask,
-    thirdTask,
-    fourthTask,
-    fifthTask
-];
 
 //#region Tasks
 app.get("/api/tasks", (req: Request, res: Response) => {
@@ -127,7 +65,6 @@ app.put("/api/tasks/:id", (req, res) => {
 
     //taskToUpdate.taskStatus = taskStatus; 
 
-    // Respond with updated task
     res.json({ message: '[SERVER] Task updated successfully', task: taskToUpdate }); //make better from below 
 
     /*const taskId = parseInt(req.params.id); 
@@ -135,6 +72,41 @@ app.put("/api/tasks/:id", (req, res) => {
     res.json({ message: "good job on task " + taskId + " " + name });*/
 
 });
+
+app.post("/api/tasks", (req, res) => {
+    const { name, description, roadmaps, assignee, startDate, endDate, taskStatus } = req.body;
+
+    try {
+        const newTask =  createTask(name, description, roadmaps, assignee, startDate, endDate, taskStatus);
+        if (!newTask) {
+            return res.status(400).json({ error: 'Task could not be created' });
+        }
+        res.status(201).json(newTask);
+
+    } catch (err) {
+        console.error('Error creating task:', err);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+}); 
+
+app.delete("/api/tasks/:id", (req, res) => {
+    const id = parseInt(req.params.id);
+
+    try {
+
+        const result = deleteTask(id)
+        if (result) {
+            return res.status(200).json("Task " + id + " is deleted");
+        }
+        else {
+            return res.status(404).json({ error: 'Task not found- id does not match records' });
+        }
+
+    } catch (err) {
+        console.error('Error deleting task:', err);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+}); 
 //#endregion
 
 //#region Milestones
@@ -181,6 +153,44 @@ app.put("/api/milestones/:id", (req, res) => {
     } catch (err) {
         res.status(500).json({ error: 'Internal Server Error' });
     };
+
+
+    app.post("/api/milestones", (req, res) => {
+        const { name, description, date, taskStatus } = req.body;
+
+        try {
+            const newMilestone = createMilestone(name, description, date, taskStatus);
+            if (!newMilestone) {
+                return res.status(400).json({ error: 'Milestone could not be created' });
+            }
+            res.status(201).json(newMilestone);
+
+        } catch (err) {
+            console.error('Error creating Milestone:', err);
+            res.status(500).json({ error: 'Internal Server Error' });
+        }
+    });
+
+
+    app.delete("/api/milestones/:id", (req, res) => {
+        const id = parseInt(req.params.id);
+
+        try {
+
+            const result = deleteMilestone(id)
+            if (result) {
+                return res.status(200).json("Milestone " + id + " is deleted");
+            }
+            else {
+                return res.status(404).json({ error: 'Milestone not found- id does not match records' });
+            }
+
+        } catch (err) {
+            console.error('Error deleting Milestone:', err);
+            res.status(500).json({ error: 'Internal Server Error' });
+        }
+    }); 
+
 });
 //#endregion
 
@@ -213,6 +223,42 @@ app.put("/api/assignees/:id", (req, res) => {
 
 });
 
+app.post("/api/assignees", (req, res) => {
+    const { name, description } = req.body;
+
+    try {
+        const newAssignee = createAssignee(name, description);
+        if (!newAssignee) {
+            return res.status(400).json({ error: 'Assignee could not be created' });
+        }
+        res.status(201).json(newAssignee);
+
+    } catch (err) {
+        console.error('Error creating assignee:', err);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+
+
+app.delete("/api/assignees/:id", (req, res) => {
+    const id = parseInt(req.params.id);
+
+    try {
+
+        const result = deleteAssignee(id)
+        if (result) {
+            return res.status(200).json("Assignee " + id + " is deleted");
+        }
+        else {
+            return res.status(404).json({ error: 'Assignee not found- id does not match records' });
+        }
+
+    } catch (err) {
+        console.error('Error deleting assignee:', err);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+}); 
+
 //#endregion
 
 //#region Tags
@@ -242,6 +288,42 @@ app.put("/api/tags/:id", (req, res) => {
         res.status(500).json({ error: 'Internal Server Error' });
     };
 });
+
+app.post("/api/tags", (req, res) => {
+    const { name, description } = req.body;
+
+    try {
+        const newTag = createTag(name, description);
+        if (!newTag) {
+            return res.status(400).json({ error: 'Tag could not be created' });
+        }
+        res.status(201).json(newTag);
+
+    } catch (err) {
+        console.error('Error creating tag:', err);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+
+
+app.delete("/api/tags/:id", (req, res) => {
+    const id = parseInt(req.params.id);
+
+    try {
+        
+        const result = deleteTag(id)
+        if (result) {
+            return res.status(200).json("Tag " + id + " is deleted");
+        }
+        else {
+            return res.status(404).json({ error: 'Tag not found- id does not match records' });
+        }
+
+    } catch (err) {
+        console.error('Error deleting tag:', err);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+}); 
 //#endregion
 
 //#region Task Status
@@ -272,12 +354,86 @@ app.get("/api/taskstatus", (req, res) => {
     };
 });*/
 
+app.post("/api/taskstatus", (req, res) => {
+    const { name, description } = req.body;
+
+    try {
+        const newStatus = createTaskStatus(name, description);
+        if (!newStatus) {
+            return res.status(400).json({ error: 'Task Status could not be created' });
+        }
+        res.status(201).json(newStatus);
+
+    } catch (err) {
+        console.error('Error creating task status:', err);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+
+
+app.delete("/api/taskstatus/:id", (req, res) => {
+    const id = parseInt(req.params.id);
+
+    try {
+
+        const result = deleteTaskStatus(id)
+        if (result) {
+            return res.status(200).json("Task Status " + id + " is deleted");
+        }
+        else {
+            return res.status(404).json({ error: 'Task Status not found- id does not match records' });
+        }
+
+    } catch (err) {
+        console.error('Error deleting task status:', err);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+}); 
+
 //#endregion
 
+// #region Roadmaps
 app.get("/api/roadmaps", (req, res) => {
     res.send({ message: roadmaps });
 });
 
+app.post("/api/roadmaps", (req, res) => {
+    const { name, description, milestones, tags } = req.body;
+
+    try {
+        const newRoadmap = createRoadmap(name, description, milestones, tags);
+        if (!newRoadmap) {
+            return res.status(400).json({ error: 'Roadmap could not be created' });
+        }
+        res.status(201).json(newRoadmap);
+
+    } catch (err) {
+        console.error('Error creating Roadmap:', err);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+
+
+app.delete("/api/roadmaps/:id", (req, res) => {
+    const id = parseInt(req.params.id);
+
+    try {
+
+        const result = deleteRoadmap(id)
+        if (result) {
+            return res.status(200).json("Roadmap " + id + " is deleted");
+        }
+        else {
+            return res.status(404).json({ error: 'Roadmap not found- id does not match records' });
+        }
+
+    } catch (err) {
+        console.error('Error deleting Roadmap:', err);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+}); 
+
+// #endregion
 
 app.use((err: any, req: Request, res: Response, next: NextFunction) => {
     console.error(err.stack);

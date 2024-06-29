@@ -85,6 +85,45 @@ export const assignees: Assignee[] = [
     ),
 ]
 
+export function createAssignee(name: string, description: string): Assignee | null {
+
+    const allAssigneeNames = assignees.map(tag => tag.name);
+
+    if (allAssigneeNames.includes(name)) {
+        console.error("Assignee name is already taken.")
+        return null;
+    }
+
+    const newID = assignees.length;
+
+    const newTag = new Assignee(name, description, newID);
+
+    assignees.push(newTag);
+    //tagsMap[name] = newTag;
+
+    return newTag;
+}
+
+export function deleteAssignee(id: number): boolean {
+
+    let index = -1;
+    index = assignees.findIndex(a => a.id === id);
+
+    if (index === -1) {
+        console.error("Assignee could not be found by id.")
+        return false;
+    }
+
+    if (index !== -1) {
+        assignees.splice(index, 1);
+    }
+
+    return true;
+}
+
+
+
+
 export default Assignee;
 
 //could have duplicates
