@@ -39,23 +39,26 @@ app.put("/api/tasks/:id", (req, res) => {
     if (!taskToUpdate) {
         return res.status(404).json({ error: 'Task not found' }); 
     }
-    //console.log("roadmaps ", roadmaps) 
+    //console.log("roadmaps ", roadmaps)
     // Update task properties
+
+    console.log("start date " + startDate)
+
     taskToUpdate.name = name;
     taskToUpdate.startDate = startDate;
     taskToUpdate.description = description;
     taskToUpdate.endDate = endDate;
     taskToUpdate.roadmaps = roadmaps;
 
-    let assignedAssignee = assignees.find(thisAssignee => assignee.name === thisAssignee.name)
+    let assignedAssignee = assignees.find(thisAssignee => assignee.name === thisAssignee.name);
     if (assignedAssignee != null) { //send back error if is null
         taskToUpdate.assignee = assignedAssignee
     }
     else {
         return res.status(400).json({ error: 'Invalid task status provided for task' });
     }
-
-    let assignedTaskStatus = taskStatusList.find(status => taskStatus === status.name)
+    console.log("task status ", taskStatus);
+    let assignedTaskStatus = taskStatusList.find(status => taskStatus.id === status.id);
     if (assignedTaskStatus != null) { //send back error if it is null
         taskToUpdate.taskStatus = assignedTaskStatus;
     }
@@ -141,7 +144,7 @@ app.put("/api/milestones/:id", (req, res) => {
             console.log("couldn't assign task status")
         }*/ 
          
-        let assignedTaskStatus = taskStatusList.find(status => taskStatus === status.name)
+        let assignedTaskStatus = taskStatusList.find(status => taskStatus.id === status.id);
         if (assignedTaskStatus != null) { //send back error if it is null
             milestoneToUpdate.taskStatus = assignedTaskStatus;
         }
