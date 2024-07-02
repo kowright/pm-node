@@ -1,4 +1,5 @@
 import dotenv from "dotenv";
+import path from "path";
 import { myDateTime } from './test'
 import { Task, tasks, createTask, deleteTask} from './Task';
 import express, { Request, Response, Express, NextFunction } from 'express';
@@ -8,12 +9,49 @@ import Assignee, { assigneeMap, assignees, createAssignee, deleteAssignee } from
 import { milestones, createMilestone, deleteMilestone } from "./Milestone";
 import { tags, createTag, deleteTag, Tag} from './Tag';
 
+const { Client } = require('pg');
+
 dotenv.config();
 
 const app: Express = express();
 const port = process.env.PORT || 3001;
 
 app.use(express.json()); 
+
+const postgresClient = new Client({ 
+    user: 'postgres',
+    host: 'localhost',
+    database: 'Tags',
+    password: process.env.POSTGRES_PASSWORD, 
+    port: 5432, // default PostgreSQL port
+});
+
+async function connect() {
+    try {
+        await postgresClient.connect();
+        console.log('Connected to PostgreSQL');
+        await selectFromMembership();
+    } catch (err) {
+        console.error('Connection error', err);
+    } finally {
+        await postgresClient.end();
+        console.log('Disconnected from PostgreSQL');
+    }
+};
+
+// Function to perform SELECT * FROM membership query
+async function selectFromMembership() {
+    try {
+        const res = await postgresClient.query('SELECT * FROM membership');
+        console.log('Query result:', res.rows);
+        // Process the rows returned by the query here
+    } catch (err) {
+        console.error('Error executing query', err);
+    }
+}
+
+// Call connect() to start the process
+connect();
 
 app.get("/", (req: Request, res: Response) => {
 	res.send("Kortney's Express + TypeScript Server");
@@ -69,10 +107,6 @@ app.put("/api/tasks/:id", (req, res) => {
     //taskToUpdate.taskStatus = taskStatus; 
 
     res.json({ message: '[SERVER] Task updated successfully', task: taskToUpdate }); //make better from below 
-
-    /*const taskId = parseInt(req.params.id); 
-    const { name } = req.body;
-    res.json({ message: "good job on task " + taskId + " " + name });*/
 
 });
 
@@ -136,14 +170,14 @@ app.put("/api/milestones/:id", (req, res) => {
         milestoneToUpdate.name = name;
         milestoneToUpdate.description = description;
         milestoneToUpdate.date = date;
-     /*   let assignedTaskStatus = taskStatusList.find(status => taskStatus.name === status.name)
+    /*    let assignedTaskStatus = taskStatusList.find(status => taskStatus.name === status.name)
         if (assignedTaskStatus != null) { //send back error if it is null
             milestoneToUpdate.taskStatus = assignedTaskStatus;
         }
         else {
             console.log("couldn't assign task status")
-        }*/ 
-         
+        } 
+         */
         let assignedTaskStatus = taskStatusList.find(status => taskStatus.id === status.id);
         if (assignedTaskStatus != null) { //send back error if it is null
             milestoneToUpdate.taskStatus = assignedTaskStatus;
@@ -334,7 +368,7 @@ app.get("/api/taskstatus", (req, res) => {
     res.send({ message: taskStatusList }); //remove message and fix frontend
 });
 
-/*app.put("/api/taskstatus/:id", (req, res) => { //need to give taskStatus id
+app.put("/api/taskstatus/:id", (req, res) => { //need to give taskStatus id
     try {
         const milestoneId = parseInt(req.params.id);
         const { name, description, taskStatus } = req.body;
@@ -355,7 +389,7 @@ app.get("/api/taskstatus", (req, res) => {
     } catch (err) {
         res.status(500).json({ error: 'Internal Server Error' });
     };
-});*/
+});
 
 app.post("/api/taskstatus", (req, res) => {
     const { name, description } = req.body;
@@ -437,6 +471,7 @@ app.delete("/api/roadmaps/:id", (req, res) => {
 }); 
 
 // #endregion
+
 
 app.use((err: any, req: Request, res: Response, next: NextFunction) => {
     console.error(err.stack);
