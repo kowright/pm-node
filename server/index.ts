@@ -22,7 +22,7 @@ app.get("/", (req: Request, res: Response) => {
 
 //#region Tasks
 app.get("/api/tasks", (req: Request, res: Response) => {
-    res.send({ message: tasks });
+    res.send({ message: tasks }); //remove message and fix frontend from this
 });
 
 app.put("/api/tasks/:id", (req, res) => {
@@ -42,7 +42,7 @@ app.put("/api/tasks/:id", (req, res) => {
     //console.log("roadmaps ", roadmaps)
     // Update task properties
 
-    console.log("start date " + startDate)
+    console.log("start date " + startDate);
 
     taskToUpdate.name = name;
     taskToUpdate.startDate = startDate;
@@ -331,7 +331,7 @@ app.delete("/api/tags/:id", (req, res) => {
 
 //#region Task Status
 app.get("/api/taskstatus", (req, res) => {
-    res.send({ message: taskStatusList });
+    res.send({ message: taskStatusList }); //remove message and fix frontend
 });
 
 /*app.put("/api/taskstatus/:id", (req, res) => { //need to give taskStatus id
@@ -397,7 +397,7 @@ app.delete("/api/taskstatus/:id", (req, res) => {
 
 // #region Roadmaps
 app.get("/api/roadmaps", (req, res) => {
-    res.send({ message: roadmaps });
+    res.send({ message: roadmaps }); //remove message and fix frontend
 });
 
 app.post("/api/roadmaps", (req, res) => {
