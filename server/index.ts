@@ -9,7 +9,8 @@ import Assignee, { assigneeMap, assignees, createAssignee, deleteAssignee } from
 import { milestones, createMilestone, deleteMilestone } from "./Milestone";
 import { tags, createTag, deleteTag, Tag} from './Tag';
 
-const { Client } = require('pg');
+
+const { Pool } = require('pg');
 
 dotenv.config();
 
@@ -18,40 +19,52 @@ const port = process.env.PORT || 3001;
 
 app.use(express.json()); 
 
-const postgresClient = new Client({ 
+//for distinguishing logs from backend on the frontend
+const formatMessage = (text: string) => {
+    return "[SERVER] " + text;
+}
+
+// #region Postgres
+const postgresPool = new Pool({
     user: 'postgres',
     host: 'localhost',
-    database: 'Tags',
-    password: process.env.POSTGRES_PASSWORD, 
+    database: 'projectmanagement',
+    password: process.env.POSTGRES_PASSWORD,
     port: 5432, // default PostgreSQL port
 });
+async function queryPostgres(query: string) {
+    let client: any;
 
-async function connect() {
+    //client connection 
     try {
-        await postgresClient.connect();
-        console.log('Connected to PostgreSQL');
-        await selectFromMembership();
+        client = await postgresPool.connect();
     } catch (err) {
         console.error('Connection error', err);
+    }
+
+    //use connection
+    try {
+        const result = await client.query(query);
+        return result.rows; 
+        //console.log('Query result:', result.rows);
     } finally {
-        await postgresClient.end();
-        console.log('Disconnected from PostgreSQL');
+        client.release();
     }
 };
 
-// Function to perform SELECT * FROM membership query
-async function selectFromMembership() {
-    try {
-        const res = await postgresClient.query('SELECT * FROM membership');
-        console.log('Query result:', res.rows);
-        // Process the rows returned by the query here
-    } catch (err) {
-        console.error('Error executing query', err);
-    }
-}
+const formatSelectIdfromDatabaseQuery = (databaseName: string, id: number) => {
+    return `SELECT * FROM ${databaseName} WHERE id = ${id}`;
+};
 
-// Call connect() to start the process
-connect();
+const formatDeleteIdfromDatabaseQuery = (databaseName: string, id: number) => {
+    return `DELETE FROM ${databaseName} WHERE id = ${id}`;
+};
+
+const formatSelectAllFromTable = (tableName: string) => {
+    return `SELECT * FROM ${tableName}`; 
+};
+
+// #endregion
 
 app.get("/", (req: Request, res: Response) => {
 	res.send("Kortney's Express + TypeScript Server");
@@ -299,7 +312,19 @@ app.delete("/api/assignees/:id", (req, res) => {
 //#endregion
 
 //#region Tags
-app.get("/api/tags", (req, res) => {
+app.get("/api/tags", async (req, res) => {
+    const q: string = 'SELECT * FROM Tag';
+
+    try {
+        const tagList = await queryPostgres(q);
+        if (!tagList) {
+            res.status(400).send(formatMessage('Error with query; no results returned'));
+        };
+        res.send({ message: tagList }); //remove message and fix frontend
+    } catch (err) {
+        console.error('Error fetching tags:', err);
+        res.status(500).send(formatMessage('Error fetching tags'));
+    };
     res.send({ message: tags });
 });
 
@@ -364,9 +389,21 @@ app.delete("/api/tags/:id", (req, res) => {
 //#endregion
 
 //#region Task Status
-app.get("/api/taskstatus", (req, res) => {
-    res.send({ message: taskStatusList }); //remove message and fix frontend
-});
+app.get("/api/taskstatus", async (req, res) => {
+    const q: string = 'SELECT * FROM TaskStatus';
+
+    try {
+        const taskStatusList = await queryPostgres(q); 
+        console.log('task status ' + taskStatusList)
+        if (!taskStatusList) {
+            res.status(400).send('Error with query; no results returned');
+        }
+        res.send({ message: taskStatusList }); //remove message and fix frontend
+    } catch (err) {
+        console.error('Error fetching task statuses:', err);
+        res.status(500).send('Error fetching task statuses');
+    };
+}); 
 
 app.put("/api/taskstatus/:id", (req, res) => { //need to give taskStatus id
     try {
@@ -472,6 +509,99 @@ app.delete("/api/roadmaps/:id", (req, res) => {
 
 // #endregion
 
+// #region Unit Types
+app.get("/api/unittypes", async (req, res) => {
+    const q: string = formatSelectAllFromTable('UnitType'); 
+
+    try {
+        const unitTypesList = await queryPostgres(q); 
+        if (!unitTypesList) {
+            res.status(400).send(formatMessage('Error with query; no results returned'));
+        };
+        res.send({ message: unitTypesList }); //remove message and fix frontend
+    } catch (err) {
+        console.error('Error fetching unit types:', err);
+        res.status(500).send(formatMessage('Error fetching unit types'));
+    };
+});
+
+app.get("/api/unittypes/:id", async (req, res) => { 
+    const typeId = parseInt(req.params.id);
+
+    const q: string = formatSelectIdfromDatabaseQuery('UnitType', typeId); 
+
+    try { 
+        const item = await queryPostgres(q);
+        console.log("get id ", item)
+        res.send(item[0]); 
+    } catch (err) { 
+        console.error('Error fetching unit type item:', err);
+        res.status(500).send(formatMessage('Error fetching unit type item'));
+    }; 
+}); 
+
+app.put("/api/unittypes/:id", async (req, res) => {
+    const id = parseInt(req.params.id);
+    const { name } = req.body;
+
+
+    const q: string = `UPDATE UnitType SET name = '${name}' WHERE id = ${id} RETURNING *`;
+     
+    try {
+        const item = await queryPostgres(q);
+        res.status(200).send(item[0]);
+    } catch (err) {
+        console.error('Error updating unit type item:', err);
+        res.status(500).send(formatMessage('Error updating unit type item'));
+    };
+
+});
+
+app.post("/api/unittypes", async (req, res) => { //should be deleted 
+    const { name } = req.body;
+
+    const q: string = `
+        INSERT INTO UnitType (name)
+        VALUES ('${name}')
+        RETURNING *;
+    `;
+
+    try { 
+        const newItem = await queryPostgres(q);
+
+        if (newItem.length > 0) {
+            res.status(201).json(newItem); 
+        } else {
+            res.status(400).json({ error: formatMessage('UnitType could not be created') });
+        }
+    } catch (err) {
+        console.error('Error creating a unit type:', err);
+        res.status(500).json({ error: formatMessage('Internal Server Error') });
+    }
+});
+
+app.delete("/api/unittypes/:id", async (req, res) => { //should be deleted 
+    const Id = parseInt(req.params.id);
+
+    const q = formatDeleteIdfromDatabaseQuery('UnitType', Id);
+
+    try {
+        const result = await queryPostgres(q);
+
+        if (result.length === 0) { 
+            res.status(200).json({ message: 'Unit type deleted successfully' });
+        } else { 
+            res.status(404).json({ error: 'Unit Type not found- does not exist in records' });
+        }
+    } catch (err) {
+        console.error('Error deleting unit type:', err);
+        res.status(500).send(formatMessage('Internal Server Error'));
+    };
+});
+
+
+
+// #endregion
 
 app.use((err: any, req: Request, res: Response, next: NextFunction) => {
     console.error(err.stack);
