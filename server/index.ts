@@ -8,6 +8,7 @@ import { taskStatusMap, taskStatusList, createTaskStatus, deleteTaskStatus } fro
 import Assignee, { assigneeMap, assignees, createAssignee, deleteAssignee } from './Assignee';
 import { milestones, createMilestone, deleteMilestone } from "./Milestone";
 import { tags, createTag, deleteTag, Tag} from './Tag';
+const validator = require('validator'); // Example library for input validation
 
 
 const { Pool } = require('pg');
@@ -20,7 +21,7 @@ const port = process.env.PORT || 3001;
 app.use(express.json()); 
 
 //for distinguishing logs from backend on the frontend
-const formatMessage = (text: string) => {
+const formatMessageToClient = (text: string) => {
     return "[SERVER] " + text;
 }
 
@@ -32,25 +33,30 @@ const postgresPool = new Pool({
     password: process.env.POSTGRES_PASSWORD,
     port: 5432, // default PostgreSQL port
 });
-async function queryPostgres(query: string) {
+
+async function queryPostgres(query: string, params?: any[]) {
     let client: any;
 
-    //client connection 
     try {
         client = await postgresPool.connect();
-    } catch (err) {
-        console.error('Connection error', err);
-    }
 
-    //use connection
-    try {
-        const result = await client.query(query);
-        return result.rows; 
-        //console.log('Query result:', result.rows);
+        let result;
+        if (params && params.length > 0) {
+            result = await client.query(query, params);
+        } else {
+            result = await client.query(query);
+        }
+
+        return result.rows;
+    } catch (err) {
+        console.error('Error executing query:', err);
+        throw err;
     } finally {
-        client.release();
+        if (client) {
+            client.release();
+        }
     }
-};
+}
 
 const formatSelectIdfromDatabaseQuery = (databaseName: string, id: number) => {
     return `SELECT * FROM ${databaseName} WHERE id = ${id}`;
@@ -69,6 +75,16 @@ const formatSelectAllFromTable = (tableName: string) => {
 app.get("/", (req: Request, res: Response) => {
 	res.send("Kortney's Express + TypeScript Server");
 });
+
+// #region Validators
+const idNumValidator = (id:number) => {
+    if (isNaN(id) || id <= 0) {
+        return false;
+    }
+    return true;
+}
+
+// #endregion
 
 
 //#region Tasks
@@ -311,80 +327,116 @@ app.delete("/api/assignees/:id", (req, res) => {
 
 //#endregion
 
-//#region Tags
-app.get("/api/tags", async (req, res) => {
-    const q: string = 'SELECT * FROM Tag';
+//#region Tags GOOD
+app.get("/api/tags", async (req, res) => { 
+    const q: string = formatSelectAllFromTable('Tag');
 
     try {
         const tagList = await queryPostgres(q);
         if (!tagList) {
-            res.status(400).send(formatMessage('Error with query; no results returned'));
+            res.status(400).send(formatMessageToClient('Error with query; no results returned'));
         };
         res.send({ message: tagList }); //remove message and fix frontend
     } catch (err) {
         console.error('Error fetching tags:', err);
-        res.status(500).send(formatMessage('Error fetching tags'));
+        res.status(500).send(formatMessageToClient('Error fetching tags'));
     };
     res.send({ message: tags });
 });
 
-app.put("/api/tags/:id", (req, res) => {
-    try {
-        const tagId = parseInt(req.params.id);
-        const { name, description, type } = req.body;
-
-        if (type != 'Tag') {
-            return res.status(404).json({ error: 'This is not a tag- check the API endpoint' });
-        }
-
-        const tagToUpdate = tags.find(ms => ms.id === tagId);
-        if (!tagToUpdate) {
-            return res.status(404).json({ error: 'Tag not found- id does not match records' });
-        }
-
-        tagToUpdate.name = name;
-        tagToUpdate.description = description;
- 
-        res.status(200).json(tagToUpdate);
-    } catch (err) {
-        res.status(500).json({ error: 'Internal Server Error' });
-    };
-});
-
-app.post("/api/tags", (req, res) => {
+app.put("/api/tags/:id", async (req, res) => { 
+    const id = parseInt(req.params.id);
     const { name, description } = req.body;
 
-    try {
-        const newTag = createTag(name, description);
-        if (!newTag) {
-            return res.status(400).json({ error: 'Tag could not be created' });
-        }
-        res.status(201).json(newTag);
+    if (!validator.isLength(name, { max: 255 })) {
+        return res.status(400).json({ error: formatMessageToClient('Name is too long for tag ' + name) });
+    }
+    if (!validator.isLength(description, { max: 255 })) {
+        return res.status(400).json({ error: formatMessageToClient('Description is too long for tag ' + name) });
+    }
 
+    const q: string = `UPDATE Tag SET name = $1, description = $2 WHERE id = ${id} RETURNING *`;
+
+    try {
+        const item = await queryPostgres(q, [name, description]);
+        res.status(200).send(item[0]);
     } catch (err) {
-        console.error('Error creating tag:', err);
-        res.status(500).json({ error: 'Internal Server Error' });
+        console.error('Error updating unit type item: ' + id, err);
+        res.status(500).send(formatMessageToClient('Error updating unit type item ' + id));
+    };
+
+});
+
+app.get("/api/tags/:id", async (req, res) => {
+    const id = parseInt(req.params.id);
+
+    if (!idNumValidator(id)) {
+        return res.status(400).json({ error: formatMessageToClient('ID for tag is invalid') });
+    }
+
+    const q: string = formatSelectIdfromDatabaseQuery('Tag', id);
+
+    try {
+        const item = await queryPostgres(q);
+        res.send(item[0]);
+    } catch (err) {
+        console.error('Error fetching tag:', err);
+        res.status(500).send(formatMessageToClient('Error fetching tag'));
+    };
+}); 
+
+app.post("/api/tags", async (req, res) => { 
+    const { name, description } = req.body;
+
+    if (!validator.isLength(name, { max: 255 })) {
+        return res.status(400).json({ error: formatMessageToClient('Name is too long for tag ' + name) });
+    }
+    if (!validator.isLength(description, { max: 255 })) {
+        return res.status(400).json({ error: formatMessageToClient('Description is too long for tag ' + name) });
+    }
+
+    const q: string = `
+        INSERT INTO Tag (name, description)
+        VALUES ($1, $2)
+        RETURNING *;
+    `;
+
+    try { 
+        const newItem = await queryPostgres(q, [name, description]);
+        
+        if (newItem.length > 0) {
+            res.status(201).json(newItem);
+        } else {
+            res.status(400).json({ error: formatMessageToClient('Tag ' + name + ' could not be created') });
+        }
+    } catch (err) {
+        console.error('Error creating tag: ' + name, err);
+        res.status(500).json({ error: formatMessageToClient('Internal Server Error') });
     }
 });
 
 
-app.delete("/api/tags/:id", (req, res) => {
+app.delete("/api/tags/:id", async (req, res) => {
     const id = parseInt(req.params.id);
 
-    try {
-        
-        const result = deleteTag(id)
-        if (result) {
-            return res.status(200).json("Tag " + id + " is deleted");
-        }
-        else {
-            return res.status(404).json({ error: 'Tag not found- id does not match records' });
-        }
+    if (!idNumValidator(id)) {
+        return res.status(400).json({ error: formatMessageToClient('ID for tag is invalid') });
+    }
 
+    const q = formatDeleteIdfromDatabaseQuery('Tag', id);
+
+    try {
+        const result = await queryPostgres(q);
+
+        if (result.length === 0) {
+            res.status(200).json({ message: formatMessageToClient('Tag deleted successfully') });
+        } else {
+            res.status(404).json({ error: formatMessageToClient('Tag not found- does not exist in records') });
+        }
     } catch (err) {
         console.error('Error deleting tag:', err);
-        res.status(500).json({ error: 'Internal Server Error' });
-    }
+        res.status(500).send(formatMessageToClient('Internal Server Error'));
+    };
 }); 
 //#endregion
 
@@ -516,17 +568,21 @@ app.get("/api/unittypes", async (req, res) => {
     try {
         const unitTypesList = await queryPostgres(q); 
         if (!unitTypesList) {
-            res.status(400).send(formatMessage('Error with query; no results returned'));
+            res.status(400).send(formatMessageToClient('Error with query; no results returned'));
         };
         res.send({ message: unitTypesList }); //remove message and fix frontend
     } catch (err) {
         console.error('Error fetching unit types:', err);
-        res.status(500).send(formatMessage('Error fetching unit types'));
+        res.status(500).send(formatMessageToClient('Error fetching unit types'));
     };
 });
 
 app.get("/api/unittypes/:id", async (req, res) => { 
     const typeId = parseInt(req.params.id);
+
+    if (!idNumValidator(typeId)) {
+        return res.status(400).json({ error: formatMessageToClient('ID for unittype is invalid') });
+    }
 
     const q: string = formatSelectIdfromDatabaseQuery('UnitType', typeId); 
 
@@ -536,7 +592,7 @@ app.get("/api/unittypes/:id", async (req, res) => {
         res.send(item[0]); 
     } catch (err) { 
         console.error('Error fetching unit type item:', err);
-        res.status(500).send(formatMessage('Error fetching unit type item'));
+        res.status(500).send(formatMessageToClient('Error fetching unit type item'));
     }; 
 }); 
 
@@ -544,6 +600,9 @@ app.put("/api/unittypes/:id", async (req, res) => {
     const id = parseInt(req.params.id);
     const { name } = req.body;
 
+    if (!validator.isLength(name, { max: 255 })) {
+        return res.status(400).json({ error: 'Name is too long' });
+    }
 
     const q: string = `UPDATE UnitType SET name = '${name}' WHERE id = ${id} RETURNING *`;
      
@@ -552,54 +611,10 @@ app.put("/api/unittypes/:id", async (req, res) => {
         res.status(200).send(item[0]);
     } catch (err) {
         console.error('Error updating unit type item:', err);
-        res.status(500).send(formatMessage('Error updating unit type item'));
+        res.status(500).send(formatMessageToClient('Error updating unit type item'));
     };
 
 });
-
-app.post("/api/unittypes", async (req, res) => { //should be deleted 
-    const { name } = req.body;
-
-    const q: string = `
-        INSERT INTO UnitType (name)
-        VALUES ('${name}')
-        RETURNING *;
-    `;
-
-    try { 
-        const newItem = await queryPostgres(q);
-
-        if (newItem.length > 0) {
-            res.status(201).json(newItem); 
-        } else {
-            res.status(400).json({ error: formatMessage('UnitType could not be created') });
-        }
-    } catch (err) {
-        console.error('Error creating a unit type:', err);
-        res.status(500).json({ error: formatMessage('Internal Server Error') });
-    }
-});
-
-app.delete("/api/unittypes/:id", async (req, res) => { //should be deleted 
-    const Id = parseInt(req.params.id);
-
-    const q = formatDeleteIdfromDatabaseQuery('UnitType', Id);
-
-    try {
-        const result = await queryPostgres(q);
-
-        if (result.length === 0) { 
-            res.status(200).json({ message: 'Unit type deleted successfully' });
-        } else { 
-            res.status(404).json({ error: 'Unit Type not found- does not exist in records' });
-        }
-    } catch (err) {
-        console.error('Error deleting unit type:', err);
-        res.status(500).send(formatMessage('Internal Server Error'));
-    };
-});
-
-
 
 // #endregion
 
