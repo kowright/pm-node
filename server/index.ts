@@ -4,7 +4,7 @@ import { myDateTime } from './test'
 import { Task, tasks, createTask, deleteTask} from './Task';
 import express, { Request, Response, Express, NextFunction, query } from 'express';
 import Roadmap, { roadmapMap, roadmaps, createRoadmap, deleteRoadmap } from "./Roadmap";
-import { taskStatusMap, taskStatusList, createTaskStatus, deleteTaskStatus } from './TaskStatus';
+import TaskStatus, { taskStatusMap, taskStatusList, createTaskStatus, deleteTaskStatus } from './TaskStatus';
 import Assignee, { assigneeMap, assignees, createAssignee, deleteAssignee } from './Assignee';
 import Milestone, { milestones, createMilestone, deleteMilestone } from "./Milestone";
 import { tags, createTag, deleteTag, Tag} from './Tag';
@@ -185,9 +185,9 @@ app.delete("/api/tasks/:id", (req, res) => {
 
 //#region Milestones GOOD
 app.get("/api/milestones", async (req, res) => {
-    const { roadmaps, tags } = req.query;
+    const { roadmaps, tags, taskStatus } = req.query;
 
-    if (roadmaps && !isBooleanStringValidator(roadmaps as String) || (tags && !isBooleanStringValidator(tags as String)) ){
+    if (roadmaps && !isBooleanStringValidator(roadmaps as String) || (tags && !isBooleanStringValidator(tags as String))) {
         console.log("error: parameters must be in correct format");
         return res.status(400).json({ error: 'Parameters must be in correct format' });
     }
@@ -205,6 +205,12 @@ app.get("/api/milestones", async (req, res) => {
     FROM Tag t
     JOIN MilestoneTag mt ON t.id = mt.tag_id
     WHERE mt.milestone_id = $1;`;
+
+    const taskStatusQ = 
+    `SELECT t.*
+    FROM TaskStatus t
+    JOIN Milestone m ON t.id = m.status_id
+    WHERE m.id = $1;`
 
     try {
         const list: any[] = await queryPostgres(q);
@@ -232,8 +238,19 @@ app.get("/api/milestones", async (req, res) => {
                 });
             };
 
-            milestoneList.push(new Milestone(ms.name, ms.description, ms.date, taskStatusMap['Backlog'],
-                ms.id, roadmapArray, tagArray, 'Milestone'));
+            const status = await queryPostgres(taskStatusQ, [ms.status_id]);
+            let taskStatus: TaskStatus;
+            if (status.length > 0) {
+                const statusObject = status[0]; 
+                taskStatus = new TaskStatus(statusObject.name, statusObject.description, statusObject.id, statusObject.type_id);
+            }
+            else {
+                res.status(400).send(formatMessageToClient('Error with query'));
+                return;
+            }
+  
+            milestoneList.push(new Milestone(ms.name, ms.description, ms.date, taskStatus,
+                ms.id, roadmapArray, tagArray, ms.type_id));
         }));
 
 
@@ -271,8 +288,15 @@ app.get("/api/milestones/:id", async (req, res) => {
         JOIN MilestoneTag mt ON t.id = mt.tag_id
         WHERE mt.milestone_id = $1;`;
 
+    const taskStatusQ =
+        `SELECT t.*
+        FROM TaskStatus t
+        JOIN Milestone m ON t.id = m.status_id
+        WHERE m.id = $1;`
+
     try {
         let queriedItem = await queryPostgres(q);
+        console.log(queriedItem)
         const item = queriedItem[0];
         const roadmapArray: Roadmap[] = [];
         if (roadmaps === 'true') {
@@ -290,8 +314,19 @@ app.get("/api/milestones/:id", async (req, res) => {
             });
         };
 
-        const newItem = new Milestone(item.name, item.description, item.date, taskStatusMap['Backlog'],
-            item.id, roadmapArray, tagArray, 'Milestone')
+        const status = await queryPostgres(taskStatusQ, [item.status_id]);
+        let taskStatus: TaskStatus;
+        if (status.length > 0) {
+            const statusObject = status[0];
+            taskStatus = new TaskStatus(statusObject.name, statusObject.description, statusObject.id, statusObject.type_id);
+        }
+        else {
+            res.status(400).send(formatMessageToClient('Error with query'));
+            return;
+        }
+
+        const newItem = new Milestone(item.name, item.description, item.date, taskStatus,
+            item.id, roadmapArray, tagArray, item.type_id)
             console.log("new item", newItem)
         res.send(newItem);
     } catch (err) {
@@ -300,7 +335,7 @@ app.get("/api/milestones/:id", async (req, res) => {
     };
 }); 
 
-app.put("/api/milestones/:id", async (req, res) => { 
+app.put("/api/milestones/:id", async (req, res) => { //QUESTIONABLE
     const id = parseInt(req.params.id);
 
     if (!isNumValidator(id)) {
@@ -735,7 +770,7 @@ app.get("/api/roadmaps", async (req, res) => {
 
         list.map(map => { 
             roadmapList.push(
-                new Roadmap(map.name, map.description, map.id, 'Roadmap'));
+                new Roadmap(map.name, map.description, map.id, map.type_id));
         });
 
         res.send({ message: roadmapList }); //remove message and fix frontend

@@ -5,6 +5,6 @@ export type UnitType = 'Task' | 'Milestone' | "Tag" | 'Assignee' | 'Task Status'
 export interface BaseType {
     name: string;
     description: string;
-    type: UnitType;
+    type: number;
     id: number;
 }

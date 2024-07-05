@@ -16,7 +16,7 @@ export class Milestone implements MilestoneInterface {
     date: Date;
     taskStatus: TaskStatus;
     id: number;
-    type: UnitType;
+    type: number;
     roadmaps: Roadmap[];
     tags: Tag[];
 
@@ -28,7 +28,7 @@ export class Milestone implements MilestoneInterface {
         id: number,
         roadmaps: Roadmap[],
         tags: Tag[],
-        type: UnitType = "Milestone",
+        type: number,
     ) {
         this.name = name;
         this.description = description;
@@ -53,7 +53,8 @@ export const milestones: Milestone[] = [
         taskStatusMap['In Progress'],
         1,
         [],
-        []
+        [],
+        -1
     ),
     new Milestone(
         "Protoype Done",
@@ -62,7 +63,8 @@ export const milestones: Milestone[] = [
         taskStatusMap['In Review'],
         2,
         [],
-        []
+        [],
+        -1
     ),
 ];
 
@@ -74,7 +76,8 @@ export const milestoneMap: Record<string, Milestone> = {
         taskStatusMap['In Progress'],
         1,
         [],
-        []  
+        [],
+        -1  
     ),
     "Protoype Done": new Milestone(
         "Protoype Done",
@@ -83,7 +86,8 @@ export const milestoneMap: Record<string, Milestone> = {
         taskStatusMap['In Review'],
         2,
         [],
-        []   
+        [],
+        -1   
     ),
 };
 
@@ -98,7 +102,7 @@ export function createMilestone(name: string, description: string, date: Date, t
 
     const newID = milestones.length;
 
-    const newTag = new Milestone(name, description, date, taskStatus, newID, [], []);
+    const newTag = new Milestone(name, description, date, taskStatus, newID, [], [], -1);
 
     milestones.push(newTag);
     //tagsMap[name] = newTag;

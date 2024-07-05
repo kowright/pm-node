@@ -1,5 +1,4 @@
 import { UnitType, BaseType } from './UnitTypes';
-
 export interface TagInterface extends BaseType{
     name: string;
     description: string;
@@ -11,13 +10,13 @@ export class Tag implements TagInterface {
     name: string;
     description: string;
     id: number;
-    type: UnitType;
+    type: number;
 
     constructor(
         name: string,
         description: string,
         id: number,
-        type: UnitType = "Tag",
+        type: number,
     ) {
         this.name = name;
         this.description = description;
@@ -34,12 +33,14 @@ export const tags: Tag[] = [
     new Tag(
         "research",
         "use for any tasks that are research and development, searching documentation",
-        0
+        0,
+        -1
     ),
     new Tag(
         "testing",
         "use for any tasks that are not real",
-        1
+        1,
+        -1
     ),
 ];
 
@@ -47,12 +48,14 @@ export const tagsMap: Record<TagType, Tag> = {
     "research": new Tag(
         "research",
         "use for any tasks that are research and development, searching documentation",
-        0
+        0,
+        -1
     ),
     "testing": new Tag(
         "testing",
         "use for any tasks that are not real",
-        1
+        1,
+        -1
     ),
 };
 
@@ -67,7 +70,7 @@ export function createTag(name: string, description: string): Tag | null {
 
     const newID = tags.length; 
  
-    const newTag = new Tag(name, description, newID);
+    const newTag = new Tag(name, description, newID, -1);
 
     tags.push(newTag);
     //tagsMap[name] = newTag;

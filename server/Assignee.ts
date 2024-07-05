@@ -11,12 +11,12 @@ export class Assignee implements AssigneeInterface {
     name: string;
     description: string;
     id: number;
-    type: UnitType;
+    type: number;
     constructor(
         name: string,
         description: string,
         id: number,
-        type: UnitType = "Assignee",
+        type: number,
     ) {
         this.name = name;
         this.description = description;
@@ -34,26 +34,31 @@ export const assigneeMap: Record<AssigneeType, Assignee> = {
         "John Doe",
         "",
         0,
+        -1
     ),
     "Jane Donuts": new Assignee(
         "Jane Donuts",
         "",
         1,
+        -1
     ),
     "Johnny Cakes": new Assignee(
         "Johnny Cakes",
         "",
         2,
+        -1
     ),
     "Kendrick Drake": new Assignee(
         "Kendrick Drake",
         "Ya'll messy",
         3,
+        -1
     ),
     "Allisa Joan": new Assignee(
         "Allisa Joan",
         "",
         4,
+        -1
     ),
 };
 
@@ -62,26 +67,31 @@ export const assignees: Assignee[] = [
         "John Doe",
         "",
         0,
+        -1
     ),
     new Assignee(
         "Jane Donuts",
         "",
         1,
+        -1
     ),
     new Assignee(
         "Johnny Cakes",
         "",
         2,
+        -1
     ),
     new Assignee(
         "Kendrick Drake",
         "Ya'll messy",
         3,
+        -1
     ),
     new Assignee(
         "Allisa Joan",
         "",
         4,
+        -1
     ),
 ]
 
@@ -96,7 +106,7 @@ export function createAssignee(name: string, description: string): Assignee | nu
 
     const newID = assignees.length;
 
-    const newTag = new Assignee(name, description, newID);
+    const newTag = new Assignee(name, description, newID, -1);
 
     assignees.push(newTag);
     //tagsMap[name] = newTag;

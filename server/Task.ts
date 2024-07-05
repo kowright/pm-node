@@ -15,7 +15,7 @@ export class Task {
     endDate: Date;
     taskStatus: TaskStatus;
     id: number;
-    type: UnitType;
+    type: number;
 
     constructor(
         name: string,
@@ -27,7 +27,7 @@ export class Task {
         endDate: Date,
         taskStatus: TaskStatus = taskStatusMap['Backlog'],
         id: number,
-        type: UnitType = "Task",
+        type: number,
     ) {
         this.name = name;
         this.description = description;
@@ -69,7 +69,8 @@ let firstTask = new Task(
     new Date('2024-06-15'),
     new Date('2024-06-30'),
     taskStatusMap['Backlog'],
-    1
+    1,
+    -1
 );
 
 let secondTask = new Task(
@@ -81,7 +82,8 @@ let secondTask = new Task(
     new Date('2024-06-30'),
     new Date('2024-07-30'),
     taskStatusMap['In Review'],
-    2
+    2,
+    -1
 );
 
 let thirdTask = new Task(
@@ -93,7 +95,8 @@ let thirdTask = new Task(
     new Date('2024-08-01'),
     new Date('2024-08-02'),
     taskStatusMap['In Progress'],
-    3
+    3,
+    -1
 );
 
 let fourthTask = new Task(
@@ -105,7 +108,8 @@ let fourthTask = new Task(
     new Date('2024-08-03'),
     new Date('2024-08-04'),
     taskStatusMap['Backlog'],
-    4
+    4,
+    -1
 );
 
 let fifthTask = new Task(
@@ -117,7 +121,8 @@ let fifthTask = new Task(
     new Date('2024-08-05'),
     new Date('2024-08-07'),
     taskStatusMap['In Progress'],
-    5
+    5,
+    -1
 );
 
 export const tasks: Task[] = [
@@ -146,7 +151,7 @@ export function createTask(name: string, description: string, roadmaps: Roadmap[
 
     const newID = tasks.length;
 
-    const newTag = new Task(name, description, roadmaps, [], assignee, startDate, endDate, taskStatus, newID);
+    const newTag = new Task(name, description, roadmaps, [], assignee, startDate, endDate, taskStatus, newID, -1);
 
     tasks.push(newTag);
     //tagsMap[name] = newTag;

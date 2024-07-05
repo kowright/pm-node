@@ -16,7 +16,7 @@ export class Roadmap implements RoadmapType {
     //milestones: Milestone[];
    // tags: Tag[];
     id: number;
-    type: UnitType;
+    type: number;
 
     constructor(
         name: string,
@@ -24,7 +24,7 @@ export class Roadmap implements RoadmapType {
        // milestones: Milestone[],
         //tags: Tag[],
         id: number,
-        type: UnitType = "Roadmap",
+        type: number,
     ) {
         this.name = name;
         this.description = description;
@@ -42,6 +42,7 @@ export const roadmaps: Roadmap[] = [
        // [milestoneMap['Project Done']],
         //[],
         1,
+        -1
     ),
     new Roadmap(
         "Engineering",
@@ -49,6 +50,7 @@ export const roadmaps: Roadmap[] = [
        // [milestoneMap['Protoype Done'], milestoneMap['Project Done'] ],
         //[],
         2,
+        -1
     ),
 ];
 
@@ -59,13 +61,15 @@ export const roadmapMap: Record<string, Roadmap> = {
        // [milestoneMap['Protoype Done'], milestoneMap['Project Done']],
        // [],
         2,
+        -1
     ),
    "Design": new Roadmap(
         "Design",
         "All artists, assets, graphics and UX/UI roles plans",
        // [milestoneMap['Project Done']],
         //[],
-        1,
+       1,
+       -1
     ),
 };
 
@@ -80,7 +84,7 @@ export function createRoadmap(name: string, description: string, tags: Tag[]): R
 
     const newID = roadmaps.length;
 
-    const newTag = new Roadmap(name, description, newID);
+    const newTag = new Roadmap(name, description, newID, -1);
 
     roadmaps.push(newTag);
     //tagsMap[name] = newTag;
