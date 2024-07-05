@@ -186,9 +186,7 @@ app.delete("/api/tasks/:id", (req, res) => {
 //#region Milestones GOOD
 app.get("/api/milestones", async (req, res) => {
     const { roadmaps, tags } = req.query;
-    console.log("roadmaps val ", isBooleanStringValidator(roadmaps as String))
-    
-    console.log(isBooleanStringValidator(roadmaps));
+
     if (roadmaps && !isBooleanStringValidator(roadmaps as String) || (tags && !isBooleanStringValidator(tags as String)) ){
         console.log("error: parameters must be in correct format");
         return res.status(400).json({ error: 'Parameters must be in correct format' });
@@ -219,7 +217,7 @@ app.get("/api/milestones", async (req, res) => {
         await Promise.all(list.map(async (ms) => {
             const roadmapArray: Roadmap[] = [];
 
-            if (roadmaps) {
+            if (roadmaps === 'true') {
                 const roadmapList: any[] = await queryPostgres(roadmapQ, [ms.id]);
                 roadmapList.forEach(roadmap => {
                     roadmapArray.push(new Roadmap(roadmap.name, roadmap.description, roadmap.id, roadmap.type));
@@ -227,7 +225,7 @@ app.get("/api/milestones", async (req, res) => {
             };
 
             const tagArray: Tag[] = [];
-            if (tags) {
+            if (tags === 'true') {
                 const tagsList: any[] = await queryPostgres(tagsQ, [ms.id]);
                 tagsList.forEach(tag => {
                     tagArray.push(new Tag(tag.name, tag.description, tag.id, tag.type));
@@ -247,7 +245,13 @@ app.get("/api/milestones", async (req, res) => {
 });
 
 app.get("/api/milestones/:id", async (req, res) => {
+    const { roadmaps, tags } = req.query;
     const id = parseInt(req.params.id);
+
+    if (roadmaps && !isBooleanStringValidator(roadmaps as String) || (tags && !isBooleanStringValidator(tags as String))) {
+        console.log("error: parameters must be in correct format");
+        return res.status(400).json({ error: 'Parameters must be in correct format' });
+    }
 
     if (!isNumValidator(id)) {
         return res.status(400).json({ error: formatMessageToClient('ID for milestones is invalid') });
@@ -255,9 +259,41 @@ app.get("/api/milestones/:id", async (req, res) => {
 
     const q: string = formatSelectIdfromDatabaseQuery('Milestone', id);
 
+    const roadmapQ: string =
+        `SELECT r.*
+        FROM Roadmap r
+        JOIN RoadmapMilestone rm ON r.id = rm.roadmap_id
+        WHERE rm.milestone_id = $1;`;
+
+    const tagsQ: string =
+        `SELECT t.*
+        FROM Tag t
+        JOIN MilestoneTag mt ON t.id = mt.tag_id
+        WHERE mt.milestone_id = $1;`;
+
     try {
-        const item = await queryPostgres(q);
-        res.send(item[0]);
+        let queriedItem = await queryPostgres(q);
+        const item = queriedItem[0];
+        const roadmapArray: Roadmap[] = [];
+        if (roadmaps === 'true') {
+            const roadmapList: any[] = await queryPostgres(roadmapQ, [item.id]);
+            roadmapList.forEach(roadmap => {
+                roadmapArray.push(new Roadmap(roadmap.name, roadmap.description, roadmap.id, roadmap.type));
+            });
+        }
+
+        const tagArray: Tag[] = [];
+        if (tags === 'true') {
+            const tagsList: any[] = await queryPostgres(tagsQ, [item.id]);
+            tagsList.forEach(tag => {
+                tagArray.push(new Tag(tag.name, tag.description, tag.id, tag.type));
+            });
+        };
+
+        const newItem = new Milestone(item.name, item.description, item.date, taskStatusMap['Backlog'],
+            item.id, roadmapArray, tagArray, 'Milestone')
+            console.log("new item", newItem)
+        res.send(newItem);
     } catch (err) {
         console.error('Error fetching milestone:', err);
         res.status(500).send(formatMessageToClient('Error fetching milestone'));
