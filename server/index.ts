@@ -2,13 +2,14 @@ import dotenv from "dotenv";
 import path from "path";
 import { myDateTime } from './test'
 import { Task, tasks, createTask, deleteTask} from './Task';
-import express, { Request, Response, Express, NextFunction } from 'express';
+import express, { Request, Response, Express, NextFunction, query } from 'express';
 import Roadmap, { roadmapMap, roadmaps, createRoadmap, deleteRoadmap } from "./Roadmap";
 import { taskStatusMap, taskStatusList, createTaskStatus, deleteTaskStatus } from './TaskStatus';
 import Assignee, { assigneeMap, assignees, createAssignee, deleteAssignee } from './Assignee';
-import { milestones, createMilestone, deleteMilestone } from "./Milestone";
+import Milestone, { milestones, createMilestone, deleteMilestone } from "./Milestone";
 import { tags, createTag, deleteTag, Tag} from './Tag';
-const validator = require('validator'); // Example library for input validation
+const validator = require('validator'); 
+const dayjs = require('dayjs');
 
 
 const { Pool } = require('pg');
@@ -18,7 +19,9 @@ dotenv.config();
 const app: Express = express();
 const port = process.env.PORT || 3001;
 
-app.use(express.json()); 
+app.use(express.json()); //parses incoming requests as JSON for POST PUT PATCH from request body
+app.use(express.urlencoded({ extended: true }));//parses incoming requests as key-value pairs for GET requests from request.query 
+
 
 //for distinguishing logs from backend on the frontend
 const formatMessageToClient = (text: string) => {
@@ -77,11 +80,15 @@ app.get("/", (req: Request, res: Response) => {
 });
 
 // #region Validators
-const idNumValidator = (id:number) => {
+const isNumValidator = (id: number) => {
     if (isNaN(id) || id <= 0) {
         return false;
     }
     return true;
+};
+
+const isBooleanStringValidator = (i: any) => {
+    return i === 'true' || i === 'false'
 }
 
 // #endregion
@@ -175,154 +182,277 @@ app.delete("/api/tasks/:id", (req, res) => {
 }); 
 //#endregion
 
-//#region Milestones
-app.get("/api/milestones", (req, res) => {
-    res.send({ message: milestones }); 
-});
 
-app.put("/api/milestones/:id", (req, res) => {
-    try {
-        const milestoneId = parseInt(req.params.id);
-        const { name, description, taskStatus, date, type } = req.body;
-
-        if (type != 'Milestone') {
-            return res.status(404).json({ error: 'This is not a milestone- check the API endpoint' });
-        } 
-
-        // Find the task by ID
-        const milestoneToUpdate = milestones.find(ms => ms.id === milestoneId);
-
-        if (!milestoneToUpdate) {
-            return res.status(404).json({ error: 'Milestone not found- id does not match records' });
-        }
-     
-        milestoneToUpdate.name = name;
-        milestoneToUpdate.description = description;
-        milestoneToUpdate.date = date;
-    /*    let assignedTaskStatus = taskStatusList.find(status => taskStatus.name === status.name)
-        if (assignedTaskStatus != null) { //send back error if it is null
-            milestoneToUpdate.taskStatus = assignedTaskStatus;
-        }
-        else {
-            console.log("couldn't assign task status")
-        } 
-         */
-        let assignedTaskStatus = taskStatusList.find(status => taskStatus.id === status.id);
-        if (assignedTaskStatus != null) { //send back error if it is null
-            milestoneToUpdate.taskStatus = assignedTaskStatus;
-        }
-        else {
-            return res.status(400).json({ error: 'Invalid task status provided for milestone' });
-        }
-      
-        res.status(200).json(milestoneToUpdate);
-    } catch (err) {
-        res.status(500).json({ error: 'Internal Server Error' });
-    };
-
-
-    app.post("/api/milestones", (req, res) => {
-        const { name, description, date, taskStatus } = req.body;
-
-        try {
-            const newMilestone = createMilestone(name, description, date, taskStatus);
-            if (!newMilestone) {
-                return res.status(400).json({ error: 'Milestone could not be created' });
-            }
-            res.status(201).json(newMilestone);
-
-        } catch (err) {
-            console.error('Error creating Milestone:', err);
-            res.status(500).json({ error: 'Internal Server Error' });
-        }
-    });
-
-
-    app.delete("/api/milestones/:id", (req, res) => {
-        const id = parseInt(req.params.id);
-
-        try {
-
-            const result = deleteMilestone(id)
-            if (result) {
-                return res.status(200).json("Milestone " + id + " is deleted");
-            }
-            else {
-                return res.status(404).json({ error: 'Milestone not found- id does not match records' });
-            }
-
-        } catch (err) {
-            console.error('Error deleting Milestone:', err);
-            res.status(500).json({ error: 'Internal Server Error' });
-        }
-    }); 
-
-});
-//#endregion
-
-//#region Assignees
-app.get("/api/assignees", (req, res) => {
-    res.send({ message: assignees });
-});
-
-app.put("/api/assignees/:id", (req, res) => {
-    try {
-        const assigneeId = parseInt(req.params.id);
-        const { name, description, type } = req.body;
-
-        if (type != 'Assignee') {
-            return res.status(404).json({ error: 'This is not an assignee- check the API endpoint' });
-        }
-
-        const assigneeToUpdate = tags.find(ms => ms.id === assigneeId);
-        if (!assigneeToUpdate) {
-            return res.status(404).json({ error: 'assignee not found- id does not match records' });
-        }
-
-        assigneeToUpdate.name = name;
-        assigneeToUpdate.description = description;
-
-        res.status(200).json(assigneeToUpdate);
-    } catch (err) {
-        res.status(500).json({ error: 'Internal Server Error' });
-    };
-
-});
-
-app.post("/api/assignees", (req, res) => {
-    const { name, description } = req.body;
-
-    try {
-        const newAssignee = createAssignee(name, description);
-        if (!newAssignee) {
-            return res.status(400).json({ error: 'Assignee could not be created' });
-        }
-        res.status(201).json(newAssignee);
-
-    } catch (err) {
-        console.error('Error creating assignee:', err);
-        res.status(500).json({ error: 'Internal Server Error' });
+//#region Milestones GOOD
+app.get("/api/milestones", async (req, res) => {
+    const { roadmaps, tags } = req.query;
+    console.log("roadmaps val ", isBooleanStringValidator(roadmaps as String))
+    
+    console.log(isBooleanStringValidator(roadmaps));
+    if (roadmaps && !isBooleanStringValidator(roadmaps as String) || (tags && !isBooleanStringValidator(tags as String)) ){
+        console.log("error: parameters must be in correct format");
+        return res.status(400).json({ error: 'Parameters must be in correct format' });
     }
+
+    const q: string = formatSelectAllFromTable('Milestone');
+
+    const roadmapQ: string =
+    `SELECT r.*
+    FROM Roadmap r
+    JOIN RoadmapMilestone rm ON r.id = rm.roadmap_id
+    WHERE rm.milestone_id = $1;`;
+
+    const tagsQ: string =
+    `SELECT t.*
+    FROM Tag t
+    JOIN MilestoneTag mt ON t.id = mt.tag_id
+    WHERE mt.milestone_id = $1;`;
+
+    try {
+        const list: any[] = await queryPostgres(q);
+        if (!list || list.length === 0) {
+            res.status(400).send(formatMessageToClient('Error with query; no results returned'));
+        };
+
+        let milestoneList: Milestone[] = [];
+
+        await Promise.all(list.map(async (ms) => {
+            const roadmapArray: Roadmap[] = [];
+
+            if (roadmaps) {
+                const roadmapList: any[] = await queryPostgres(roadmapQ, [ms.id]);
+                roadmapList.forEach(roadmap => {
+                    roadmapArray.push(new Roadmap(roadmap.name, roadmap.description, roadmap.id, roadmap.type));
+                });
+            };
+
+            const tagArray: Tag[] = [];
+            if (tags) {
+                const tagsList: any[] = await queryPostgres(tagsQ, [ms.id]);
+                tagsList.forEach(tag => {
+                    tagArray.push(new Tag(tag.name, tag.description, tag.id, tag.type));
+                });
+            };
+
+            milestoneList.push(new Milestone(ms.name, ms.description, ms.date, taskStatusMap['Backlog'],
+                ms.id, roadmapArray, tagArray, 'Milestone'));
+        }));
+
+
+        res.send({ message: milestoneList }); //remove message and fix frontend
+    } catch (err) {
+        console.error('Error fetching milestones:', err);
+        res.status(500).send(formatMessageToClient('Error fetching milestones'));
+    };
 });
 
-
-app.delete("/api/assignees/:id", (req, res) => {
+app.get("/api/milestones/:id", async (req, res) => {
     const id = parseInt(req.params.id);
 
+    if (!isNumValidator(id)) {
+        return res.status(400).json({ error: formatMessageToClient('ID for milestones is invalid') });
+    }
+
+    const q: string = formatSelectIdfromDatabaseQuery('Milestone', id);
+
     try {
+        const item = await queryPostgres(q);
+        res.send(item[0]);
+    } catch (err) {
+        console.error('Error fetching milestone:', err);
+        res.status(500).send(formatMessageToClient('Error fetching milestone'));
+    };
+}); 
 
-        const result = deleteAssignee(id)
-        if (result) {
-            return res.status(200).json("Assignee " + id + " is deleted");
-        }
-        else {
-            return res.status(404).json({ error: 'Assignee not found- id does not match records' });
-        }
+app.put("/api/milestones/:id", async (req, res) => { 
+    const id = parseInt(req.params.id);
 
+    if (!isNumValidator(id)) {
+        return res.status(400).json({ error: formatMessageToClient('ID for milestone is invalid') });
+    }
+
+    const q: string = formatSelectIdfromDatabaseQuery('Milestone', id);
+
+    try {
+        const item = await queryPostgres(q);
+        res.send(item[0]);
+    } catch (err) {
+        console.error('Error fetching milestone:', err);
+        res.status(500).send(formatMessageToClient('Error fetching milestone'));
+    };
+
+});
+   
+
+
+app.post("/api/milestones", async (req, res) => {
+    const { name, description, date, taskStatus_id } = req.body;
+
+    if (!validator.isLength(name, { max: 255 })) {
+        return res.status(400).json({ error: formatMessageToClient('Name is too long for milestone ' + name) });
+    }
+    if (!validator.isLength(description, { max: 255 })) {
+        return res.status(400).json({ error: formatMessageToClient('Description is too long for milestone ' + name) });
+    }
+    if (!dayjs(date, 'YYYY-MM-DD', true).isValid()) {
+        return res.status(400).json({ error: formatMessageToClient('Date format is not correct for milestone ' + name) });
+    }
+    if (taskStatus_id && !isNumValidator(taskStatus_id)) {
+        return res.status(400).json({ error: formatMessageToClient('ID for milestone ' + name + 'is invalid') });
+    }
+
+
+    const q: string = `
+    INSERT INTO Milestone (name, description, date, status_id)
+    VALUES ($1, $2, $3, $4)
+    RETURNING *;
+`;
+
+    try {
+        const newItem = await queryPostgres(q, [name, description, date, taskStatus_id]);
+
+        if (newItem.length > 0) {
+            res.status(201).json(newItem);
+        } else {
+            res.status(400).json({ error: formatMessageToClient('Milestone ' + name + ' could not be created') });
+        }
+    } catch (err) {
+        console.error('Error creating milestone: ' + name, err);
+        res.status(500).json({ error: formatMessageToClient('Internal Server Error') });
+    }
+});
+
+
+app.delete("/api/milestones/:id", async (req, res) => {
+    const id = parseInt(req.params.id);
+
+    if (!isNumValidator(id)) {
+        return res.status(400).json({ error: formatMessageToClient('ID for assignee is invalid') });
+    }
+
+    const q = formatDeleteIdfromDatabaseQuery('Milestone', id);
+
+    try {
+        const result = await queryPostgres(q);
+
+        if (result.length === 0) {
+            res.status(200).json({ message: formatMessageToClient('Milestone deleted successfully') });
+        } else {
+            res.status(404).json({ error: formatMessageToClient('Milestone not found- does not exist in records') });
+        }
+    } catch (err) {
+        console.error('Error deleting milestone:', err);
+        res.status(500).send(formatMessageToClient('Internal Server Error'));
+    };
+}); 
+
+
+//#endregion
+
+//#region Assignees GOOD
+app.get("/api/assignees", async (req, res) => {
+    const q: string = formatSelectAllFromTable('Assignee');
+
+    try {
+        const list = await queryPostgres(q);
+        if (!list || list.length === 0) {
+            res.status(400).send(formatMessageToClient('Error with query; no results returned'));
+        };
+        res.send({ message: list }); //remove message and fix frontend
+    } catch (err) {
+        console.error('Error fetching assignees:', err);
+        res.status(500).send(formatMessageToClient('Error fetching assignees'));
+    };
+});
+
+app.get("/api/assignees/:id", async (req, res) => {
+    const id = parseInt(req.params.id);
+
+    if (!isNumValidator(id)) {
+        return res.status(400).json({ error: formatMessageToClient('ID for assignee is invalid') });
+    }
+
+    const q: string = formatSelectIdfromDatabaseQuery('Assignee', id);
+
+    try {
+        const item = await queryPostgres(q);
+        res.send(item[0]);
+    } catch (err) {
+        console.error('Error fetching assignee:', err);
+        res.status(500).send(formatMessageToClient('Error fetching assignee'));
+    };
+}); 
+
+app.put("/api/assignees/:id", async (req, res) => {
+    const id = parseInt(req.params.id);
+
+    if (!isNumValidator(id)) {
+        return res.status(400).json({ error: formatMessageToClient('ID for assignee is invalid') });
+    }
+
+    const q: string = formatSelectIdfromDatabaseQuery('Assignee', id);
+
+    try {
+        const item = await queryPostgres(q);
+        res.send(item[0]);
+    } catch (err) {
+        console.error('Error fetching assignee:', err);
+        res.status(500).send(formatMessageToClient('Error fetching assignee'));
+    };
+});
+
+app.post("/api/assignees", async (req, res) => {
+    const { name, description } = req.body;
+
+    if (!validator.isLength(name, { max: 255 })) {
+        return res.status(400).json({ error: formatMessageToClient('Name is too long for tag ' + name) });
+    }
+    if (!validator.isLength(description, { max: 255 })) {
+        return res.status(400).json({ error: formatMessageToClient('Description is too long for tag ' + name) });
+    }
+
+    const q: string = `
+        INSERT INTO Tag (name, description)
+        VALUES ($1, $2)
+        RETURNING *;
+    `;
+
+    try {
+        const newItem = await queryPostgres(q, [name, description]);
+
+        if (newItem.length > 0) {
+            res.status(201).json(newItem);
+        } else {
+            res.status(400).json({ error: formatMessageToClient('Assignee ' + name + ' could not be created') });
+        }
+    } catch (err) {
+        console.error('Error creating assignee: ' + name, err);
+        res.status(500).json({ error: formatMessageToClient('Internal Server Error') });
+    }
+});
+
+
+app.delete("/api/assignees/:id", async (req, res) => {
+    const id = parseInt(req.params.id);
+
+    if (!isNumValidator(id)) {
+        return res.status(400).json({ error: formatMessageToClient('ID for assignee is invalid') });
+    }
+
+    const q = formatDeleteIdfromDatabaseQuery('Assignee', id);
+
+    try {
+        const result = await queryPostgres(q);
+
+        if (result.length === 0) {
+            res.status(200).json({ message: formatMessageToClient('Assignee deleted successfully') });
+        } else {
+            res.status(404).json({ error: formatMessageToClient('Assignee not found- does not exist in records') });
+        }
     } catch (err) {
         console.error('Error deleting assignee:', err);
-        res.status(500).json({ error: 'Internal Server Error' });
-    }
+        res.status(500).send(formatMessageToClient('Internal Server Error'));
+    };
 }); 
 
 //#endregion
@@ -341,7 +471,7 @@ app.get("/api/tags", async (req, res) => {
         console.error('Error fetching tags:', err);
         res.status(500).send(formatMessageToClient('Error fetching tags'));
     };
-    res.send({ message: tags });
+   // res.send({ message: tags });
 });
 
 app.put("/api/tags/:id", async (req, res) => { 
@@ -370,7 +500,7 @@ app.put("/api/tags/:id", async (req, res) => {
 app.get("/api/tags/:id", async (req, res) => {
     const id = parseInt(req.params.id);
 
-    if (!idNumValidator(id)) {
+    if (!isNumValidator(id)) {
         return res.status(400).json({ error: formatMessageToClient('ID for tag is invalid') });
     }
 
@@ -419,7 +549,7 @@ app.post("/api/tags", async (req, res) => {
 app.delete("/api/tags/:id", async (req, res) => {
     const id = parseInt(req.params.id);
 
-    if (!idNumValidator(id)) {
+    if (!isNumValidator(id)) {
         return res.status(400).json({ error: formatMessageToClient('ID for tag is invalid') });
     }
 
@@ -440,123 +570,239 @@ app.delete("/api/tags/:id", async (req, res) => {
 }); 
 //#endregion
 
-//#region Task Status
+//#region Task Status GOOD
 app.get("/api/taskstatus", async (req, res) => {
-    const q: string = 'SELECT * FROM TaskStatus';
+    const q: string = formatSelectAllFromTable('TaskStatus');
 
     try {
-        const taskStatusList = await queryPostgres(q); 
-        console.log('task status ' + taskStatusList)
-        if (!taskStatusList) {
-            res.status(400).send('Error with query; no results returned');
-        }
-        res.send({ message: taskStatusList }); //remove message and fix frontend
+        const list = await queryPostgres(q);
+        if (!list) {
+            res.status(400).send(formatMessageToClient('Error with query; no results returned'));
+        };
+        res.send({ message: list }); //remove message and fix frontend
     } catch (err) {
-        console.error('Error fetching task statuses:', err);
-        res.status(500).send('Error fetching task statuses');
+        console.error('Error fetching task status:', err);
+        res.status(500).send(formatMessageToClient('Error fetching task status'));
     };
 }); 
 
-app.put("/api/taskstatus/:id", (req, res) => { //need to give taskStatus id
-    try {
-        const milestoneId = parseInt(req.params.id);
-        const { name, description, taskStatus } = req.body;
-        // Find the task by ID
-        const milestoneToUpdate = milestones.find(ms => ms.id === milestoneId);
-
-        if (!milestoneToUpdate) {
-            return res.status(404).json({ error: 'Milestone not found' });
-        }
-
-        milestoneToUpdate.name = name;
-        milestoneToUpdate.description = description;
-        // milestoneToUpdate.date = date;
-        milestoneToUpdate.taskStatus = taskStatus;
-
-        // Respond with status code 200 (OK)
-        res.status(200).json(milestoneToUpdate);
-    } catch (err) {
-        res.status(500).json({ error: 'Internal Server Error' });
-    };
-});
-
-app.post("/api/taskstatus", (req, res) => {
-    const { name, description } = req.body;
-
-    try {
-        const newStatus = createTaskStatus(name, description);
-        if (!newStatus) {
-            return res.status(400).json({ error: 'Task Status could not be created' });
-        }
-        res.status(201).json(newStatus);
-
-    } catch (err) {
-        console.error('Error creating task status:', err);
-        res.status(500).json({ error: 'Internal Server Error' });
-    }
-});
-
-
-app.delete("/api/taskstatus/:id", (req, res) => {
+app.get("/api/taskstatus/:id", async (req, res) => {
     const id = parseInt(req.params.id);
 
+    if (!isNumValidator(id)) {
+        return res.status(400).json({ error: formatMessageToClient('ID for task status is invalid') });
+    }
+
+    const q: string = formatSelectIdfromDatabaseQuery('TaskStatus', id);
+
     try {
+        const item = await queryPostgres(q);
+        res.send(item[0]);
+    } catch (err) {
+        console.error('Error fetching task status:', err);
+        res.status(500).send(formatMessageToClient('Error fetching task status'));
+    };
+}); 
 
-        const result = deleteTaskStatus(id)
-        if (result) {
-            return res.status(200).json("Task Status " + id + " is deleted");
-        }
-        else {
-            return res.status(404).json({ error: 'Task Status not found- id does not match records' });
-        }
+app.put("/api/taskstatus/:id", async (req, res) => {
+    const id = parseInt(req.params.id);
+    const { name, description } = req.body;
 
+    if (!validator.isLength(name, { max: 255 })) {
+        return res.status(400).json({ error: formatMessageToClient('Name is too long for tag ' + name) });
+    }
+    if (!validator.isLength(description, { max: 255 })) {
+        return res.status(400).json({ error: formatMessageToClient('Description is too long for tag ' + name) });
+    }
+
+    const q: string = `UPDATE TaskStatus SET name = $1, description = $2 WHERE id = ${id} RETURNING *`;
+
+    try {
+        const item = await queryPostgres(q, [name, description]);
+        res.status(200).send(item[0]);
+    } catch (err) {
+        console.error('Error updating task status: ' + id, err);
+        res.status(500).send(formatMessageToClient('Error updating task status ' + id));
+    };
+
+});
+
+
+app.post("/api/taskstatus", async (req, res) => {
+    const { name, description } = req.body;
+
+    if (!validator.isLength(name, { max: 255 })) {
+        return res.status(400).json({ error: formatMessageToClient('Name is too long for tag ' + name) });
+    }
+    if (!validator.isLength(description, { max: 255 })) {
+        return res.status(400).json({ error: formatMessageToClient('Description is too long for tag ' + name) });
+    }
+
+    const q: string = `
+        INSERT INTO TaskStatus (name, description)
+        VALUES ($1, $2)
+        RETURNING *;
+    `;
+
+    try {
+        const newItem = await queryPostgres(q, [name, description]);
+
+        if (newItem.length > 0) {
+            res.status(201).json(newItem);
+        } else {
+            res.status(400).json({ error: formatMessageToClient('Task Status ' + name + ' could not be created') });
+        }
+    } catch (err) {
+        console.error('Error creating task status: ' + name, err);
+        res.status(500).json({ error: formatMessageToClient('Internal Server Error') });
+    }
+});
+
+
+app.delete("/api/taskstatus/:id", async (req, res) => {
+    const id = parseInt(req.params.id);
+
+    if (!isNumValidator(id)) {
+        return res.status(400).json({ error: formatMessageToClient('ID for task status is invalid') });
+    }
+
+    const q = formatDeleteIdfromDatabaseQuery('TaskStatus', id);
+
+    try {
+        const result = await queryPostgres(q);
+
+        if (result.length === 0) {
+            res.status(200).json({ message: formatMessageToClient('Task Status deleted successfully') });
+        } else {
+            res.status(404).json({ error: formatMessageToClient('Task Status not found- does not exist in records') });
+        }
     } catch (err) {
         console.error('Error deleting task status:', err);
-        res.status(500).json({ error: 'Internal Server Error' });
-    }
+        res.status(500).send(formatMessageToClient('Internal Server Error'));
+    };
 }); 
 
 //#endregion
 
 // #region Roadmaps
-app.get("/api/roadmaps", (req, res) => {
-    res.send({ message: roadmaps }); //remove message and fix frontend
-});
+app.get("/api/roadmaps", async (req, res) => {
 
-app.post("/api/roadmaps", (req, res) => {
-    const { name, description, milestones, tags } = req.body;
+    const q: string = formatSelectAllFromTable('Roadmap');
 
     try {
-        const newRoadmap = createRoadmap(name, description, milestones, tags);
-        if (!newRoadmap) {
-            return res.status(400).json({ error: 'Roadmap could not be created' });
-        }
-        res.status(201).json(newRoadmap);
+        const list: any[] = await queryPostgres(q);
+        if (!list) {
+            res.status(400).send(formatMessageToClient('Error with query; no results returned'));
+        };
 
+        let roadmapList: Roadmap[] = [];
+
+        list.map(map => { 
+            roadmapList.push(
+                new Roadmap(map.name, map.description, map.id, 'Roadmap'));
+        });
+
+        res.send({ message: roadmapList }); //remove message and fix frontend
     } catch (err) {
-        console.error('Error creating Roadmap:', err);
-        res.status(500).json({ error: 'Internal Server Error' });
-    }
+        console.error('Error fetching roadmaps:', err);
+        res.status(500).send(formatMessageToClient('Error fetching roadmaps'));
+    };
 });
 
-
-app.delete("/api/roadmaps/:id", (req, res) => {
+app.get("/api/roadmaps/:id", async (req, res) => {
     const id = parseInt(req.params.id);
 
-    try {
-
-        const result = deleteRoadmap(id)
-        if (result) {
-            return res.status(200).json("Roadmap " + id + " is deleted");
-        }
-        else {
-            return res.status(404).json({ error: 'Roadmap not found- id does not match records' });
-        }
-
-    } catch (err) {
-        console.error('Error deleting Roadmap:', err);
-        res.status(500).json({ error: 'Internal Server Error' });
+    if (!isNumValidator(id)) {
+        return res.status(400).json({ error: formatMessageToClient('ID for roadmap is invalid') });
     }
+
+    const q: string = formatSelectIdfromDatabaseQuery('Roadmap', id);
+
+    try {
+        const item = await queryPostgres(q);
+        res.send(item[0]);
+    } catch (err) {
+        console.error('Error fetching roadmap:', err);
+        res.status(500).send(formatMessageToClient('Error fetching roadmap'));
+    };
+});
+
+app.put("/api/roadmap/:id", async (req, res) => {
+    const id = parseInt(req.params.id);
+    const { name, description } = req.body;
+
+    if (!validator.isLength(name, { max: 255 })) {
+        return res.status(400).json({ error: formatMessageToClient('Name is too long for tag ' + name) });
+    }
+    if (!validator.isLength(description, { max: 255 })) {
+        return res.status(400).json({ error: formatMessageToClient('Description is too long for tag ' + name) });
+    }
+
+    const q: string = `UPDATE Roadmap SET name = $1, description = $2 WHERE id = ${id} RETURNING *`;
+
+    try {
+        const item = await queryPostgres(q, [name, description]);
+        res.status(200).send(item[0]);
+    } catch (err) {
+        console.error('Error updating roadmap: ' + id, err);
+        res.status(500).send(formatMessageToClient('Error updating roadmap ' + id));
+    };
+
+});
+
+
+app.post("/api/roadmaps", async (req, res) => {
+    const { name, description } = req.body;
+
+    if (!validator.isLength(name, { max: 255 })) {
+        return res.status(400).json({ error: formatMessageToClient('Name is too long for tag ' + name) });
+    }
+    if (!validator.isLength(description, { max: 255 })) {
+        return res.status(400).json({ error: formatMessageToClient('Description is too long for tag ' + name) });
+    }
+
+    const q: string = `
+        INSERT INTO Roadmap (name, description)
+        VALUES ($1, $2)
+        RETURNING *;
+    `;
+
+    try {
+        const newItem = await queryPostgres(q, [name, description]);
+
+        if (newItem.length > 0) {
+            res.status(201).json(newItem);
+        } else {
+            res.status(400).json({ error: formatMessageToClient('Roadmap ' + name + ' could not be created') });
+        }
+    } catch (err) {
+        console.error('Error creating roadmap: ' + name, err);
+        res.status(500).json({ error: formatMessageToClient('Internal Server Error') });
+    }
+});
+
+
+app.delete("/api/roadmaps/:id", async (req, res) => {
+    const id = parseInt(req.params.id);
+
+    if (!isNumValidator(id)) {
+        return res.status(400).json({ error: formatMessageToClient('ID for roadmap is invalid') });
+    }
+
+    const q = formatDeleteIdfromDatabaseQuery('Roadmap', id);
+
+    try {
+        const result = await queryPostgres(q);
+
+        if (result.length === 0) {
+            res.status(200).json({ message: formatMessageToClient('Roadmap deleted successfully') });
+        } else {
+            res.status(404).json({ error: formatMessageToClient('Roadmap not found- does not exist in records') });
+        }
+    } catch (err) {
+        console.error('Error deleting roadmap:', err);
+        res.status(500).send(formatMessageToClient('Internal Server Error'));
+    };
 }); 
 
 // #endregion
@@ -580,7 +826,7 @@ app.get("/api/unittypes", async (req, res) => {
 app.get("/api/unittypes/:id", async (req, res) => { 
     const typeId = parseInt(req.params.id);
 
-    if (!idNumValidator(typeId)) {
+    if (!isNumValidator(typeId)) {
         return res.status(400).json({ error: formatMessageToClient('ID for unittype is invalid') });
     }
 

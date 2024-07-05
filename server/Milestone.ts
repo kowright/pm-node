@@ -2,10 +2,13 @@ import Roadmap from './Roadmap';
 import { roadmapMap } from './Roadmap';
 import TaskStatus, { taskStatusMap, TaskStatusType } from './TaskStatus';
 import { UnitType, BaseType } from './UnitTypes';
-
+import { Tag } from './Tag';
+ 
 export interface MilestoneInterface extends BaseType {
     date: Date;
     taskStatus: TaskStatus;
+    roadmaps: Roadmap[];
+    tags: Tag[];
 }
 export class Milestone implements MilestoneInterface {
     name: string;
@@ -14,6 +17,8 @@ export class Milestone implements MilestoneInterface {
     taskStatus: TaskStatus;
     id: number;
     type: UnitType;
+    roadmaps: Roadmap[];
+    tags: Tag[];
 
     constructor(
         name: string,
@@ -21,6 +26,8 @@ export class Milestone implements MilestoneInterface {
         date: Date,
         taskStatus: TaskStatus,
         id: number,
+        roadmaps: Roadmap[],
+        tags: Tag[],
         type: UnitType = "Milestone",
     ) {
         this.name = name;
@@ -28,6 +35,8 @@ export class Milestone implements MilestoneInterface {
         this.date = date;
         this.taskStatus = taskStatus;
         this.id = id;
+        this.roadmaps = roadmaps;
+        this.tags = tags;
         this.type = type;
     }
 
@@ -42,14 +51,18 @@ export const milestones: Milestone[] = [
         "Time to ship!",
         new Date("2024-09-01"),
         taskStatusMap['In Progress'],
-        1
+        1,
+        [],
+        []
     ),
     new Milestone(
         "Protoype Done",
         "Time to test!",
         new Date("2024-08-15"),
         taskStatusMap['In Review'],
-        2
+        2,
+        [],
+        []
     ),
 ];
 
@@ -59,14 +72,18 @@ export const milestoneMap: Record<string, Milestone> = {
         "Time to ship!",
         new Date("2024-09-01"),
         taskStatusMap['In Progress'],
-        1
+        1,
+        [],
+        []  
     ),
     "Protoype Done": new Milestone(
         "Protoype Done",
         "Time to test!",
         new Date("2024-08-15"),
         taskStatusMap['In Review'],
-        2 
+        2,
+        [],
+        []   
     ),
 };
 
@@ -81,7 +98,7 @@ export function createMilestone(name: string, description: string, date: Date, t
 
     const newID = milestones.length;
 
-    const newTag = new Milestone(name, description, date, taskStatus, newID);
+    const newTag = new Milestone(name, description, date, taskStatus, newID, [], []);
 
     milestones.push(newTag);
     //tagsMap[name] = newTag;

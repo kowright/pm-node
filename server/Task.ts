@@ -2,12 +2,14 @@ import TaskStatus, { taskStatusMap } from './TaskStatus';
 import Roadmap, { roadmapMap } from './Roadmap';
 import Assignee, { assigneeMap } from './Assignee';
 import { UnitType } from './UnitTypes';
+import { Tag } from './Tag';
 
 export class Task {
     name: string;
     description: string;
     duration: number;
     roadmaps: Roadmap[];
+    tags: Tag[];
     assignee: Assignee;
     startDate: Date;
     endDate: Date;
@@ -19,6 +21,7 @@ export class Task {
         name: string,
         description: string,
         roadmaps: Roadmap[],
+        tags: Tag[],
         assignee: Assignee,
         startDate: Date,
         endDate: Date,
@@ -29,6 +32,7 @@ export class Task {
         this.name = name;
         this.description = description;
         this.roadmaps = roadmaps;
+        this.tags = tags;
         this.assignee = assignee;
         this.startDate = startDate;
         this.endDate = endDate;
@@ -60,6 +64,7 @@ let firstTask = new Task(
     'Create Feature Specification',
     'Outline what the feature needs to do',
     [roadmapMap['Engineering']],
+    [],
     assigneeMap['John Doe'],
     new Date('2024-06-15'),
     new Date('2024-06-30'),
@@ -71,6 +76,7 @@ let secondTask = new Task(
     'Create Design Doc',
     'Outline what the feature design is',
     [roadmapMap['Design']],
+    [],
     assigneeMap['Jane Donuts'],
     new Date('2024-06-30'),
     new Date('2024-07-30'),
@@ -82,6 +88,7 @@ let thirdTask = new Task(
     'Conduct Design Review',
     'Review All Documentation',
     [roadmapMap['Engineering']],
+    [],
     assigneeMap['Johnny Cakes'],
     new Date('2024-08-01'),
     new Date('2024-08-02'),
@@ -93,6 +100,7 @@ let fourthTask = new Task(
     'Create Tasks',
     'Create Tasks In JIRA',
     [roadmapMap['Engineering']],
+    [],
     assigneeMap['Kendrick Drake'],
     new Date('2024-08-03'),
     new Date('2024-08-04'),
@@ -104,6 +112,7 @@ let fifthTask = new Task(
     'Assign Tasks',
     'Assign People to Tasks',
     [roadmapMap['Engineering'], roadmapMap['Design']],
+    [],
     assigneeMap['Allisa Joan'],
     new Date('2024-08-05'),
     new Date('2024-08-07'),
@@ -137,7 +146,7 @@ export function createTask(name: string, description: string, roadmaps: Roadmap[
 
     const newID = tasks.length;
 
-    const newTag = new Task(name, description, roadmaps, assignee, startDate, endDate, taskStatus, newID);
+    const newTag = new Task(name, description, roadmaps, [], assignee, startDate, endDate, taskStatus, newID);
 
     tasks.push(newTag);
     //tagsMap[name] = newTag;

@@ -6,30 +6,30 @@ import { UnitType, BaseType } from './UnitTypes';
 export type RoadmapList = 'Engineering' | "Design";
 
 interface RoadmapType extends BaseType {
-    milestones: Milestone[];
-    tags: Tag[]; 
+    //milestones: Milestone[]; Milestones will now have roadmaps- roadmap will be a base type that others have
+   // tags: Tag[]; 
 }
 
 export class Roadmap implements RoadmapType {
     name: string;
     description: string;
-    milestones: Milestone[];
-    tags: Tag[];
+    //milestones: Milestone[];
+   // tags: Tag[];
     id: number;
     type: UnitType;
 
     constructor(
         name: string,
         description: string,
-        milestones: Milestone[],
-        tags: Tag[],
+       // milestones: Milestone[],
+        //tags: Tag[],
         id: number,
         type: UnitType = "Roadmap",
     ) {
         this.name = name;
         this.description = description;
-        this.milestones = milestones;
-        this.tags = tags;
+       // this.milestones = milestones;
+        //this.tags = tags;
         this.id = id;
         this.type = type;
     }
@@ -39,15 +39,15 @@ export const roadmaps: Roadmap[] = [
     new Roadmap(
         "Design",
         "All artists, assets, graphics and UX/UI roles plans",
-        [milestoneMap['Project Done']],
-        [],
+       // [milestoneMap['Project Done']],
+        //[],
         1,
     ),
     new Roadmap(
         "Engineering",
         "All developers and engineering roles plans",
-        [milestoneMap['Protoype Done'], milestoneMap['Project Done'] ],
-        [],
+       // [milestoneMap['Protoype Done'], milestoneMap['Project Done'] ],
+        //[],
         2,
     ),
 ];
@@ -56,20 +56,20 @@ export const roadmapMap: Record<string, Roadmap> = {
     "Engineering": new Roadmap(
         "Engineering",
         "All developers and engineering roles plans",
-        [milestoneMap['Protoype Done'], milestoneMap['Project Done']],
-        [],
+       // [milestoneMap['Protoype Done'], milestoneMap['Project Done']],
+       // [],
         2,
     ),
    "Design": new Roadmap(
         "Design",
         "All artists, assets, graphics and UX/UI roles plans",
-        [milestoneMap['Project Done']],
-        [],
+       // [milestoneMap['Project Done']],
+        //[],
         1,
     ),
 };
 
-export function createRoadmap(name: string, description: string, milestones: Milestone[], tags: Tag[]): Roadmap | null {
+export function createRoadmap(name: string, description: string, tags: Tag[]): Roadmap | null {
 
     const allTagNames = roadmaps.map(Roadmap => Roadmap.name);
 
@@ -80,7 +80,7 @@ export function createRoadmap(name: string, description: string, milestones: Mil
 
     const newID = roadmaps.length;
 
-    const newTag = new Roadmap(name, description, milestones, tags, newID);
+    const newTag = new Roadmap(name, description, newID);
 
     roadmaps.push(newTag);
     //tagsMap[name] = newTag;
