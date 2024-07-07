@@ -109,95 +109,452 @@ function isArrayOfNumbersValidator(tags: any): boolean {
 
 
 //#region Tasks
-app.get("/api/tasks", (req: Request, res: Response) => {
-    res.send({ message: tasks }); //remove message and fix frontend from this
-});
+app.get("/api/tasks", async (req: Request, res: Response) => {
+    const { roadmaps, tags } = req.query;
 
-app.put("/api/tasks/:id", (req, res) => {
-    const taskId = parseInt(req.params.id); 
-    const { startDate, name, description, endDate, assignee, taskStatus, type, roadmaps } = req.body; //Add back taskStatus, name
-    //const { name } = req.body; //Add back taskStatus
-    // Find the task by ID
-    if (type != 'Task') {
-        return res.status(404).json({ error: 'This is not a task- check the API endpoint'}); 
+    if (roadmaps && !isBooleanStringValidator(roadmaps as String) || (tags && !isBooleanStringValidator(tags as String))) {
+        console.log("error: parameters must be in correct format");
+        return res.status(400).json({ error: 'Parameters must be in correct format' });
     }
 
-    const taskToUpdate = tasks.find(task => task.id === taskId);
-    console.log("updating task " + name)
-    if (!taskToUpdate) {
-        return res.status(404).json({ error: 'Task not found' }); 
-    }
-    //console.log("roadmaps ", roadmaps)
-    // Update task properties
+    const roadmapQ: string = `
+    SELECT r.*
+    FROM Roadmap r
+    JOIN TaskRoadmap tr ON r.id = tr.roadmap_id
+    WHERE tr.task_id = $1;`;
 
-    console.log("start date " + startDate);
+    const tagsQ: string =`
+    SELECT t.*
+    FROM Tag t
+    JOIN TaskTag tt ON t.id = tt.tag_id
+    WHERE tt.task_id = $1;`;
 
-    taskToUpdate.name = name;
-    taskToUpdate.startDate = startDate;
-    taskToUpdate.description = description;
-    taskToUpdate.endDate = endDate;
-    taskToUpdate.roadmaps = roadmaps;
+    const getEverything = `
+    SELECT
+        t.id AS task_id,
+        t.name AS task_name,
+        t.description AS task_description,
+        t.start_date,
+        t.end_date,
+        a.id AS assignee_id,
+        a.name AS assignee_name,
+        a.description AS assignee_description,
+        a.type_id AS assignee_type_id,
+        ts.id AS task_status_id,
+        ts.name AS task_status_name,
+        ts.description AS task_status_description,
+        ts.type_id AS task_status_type_id,
+        ty.id AS type_id,
+        ty.name AS type_name
+    FROM
+        Task t
+    JOIN
+        Assignee a ON t.assignee_id = a.id
+    JOIN
+        TaskStatus ts ON t.status_id = ts.id
+    JOIN
+        UnitType ty ON t.type_id = ty.id;
+    `;
 
-    let assignedAssignee = assignees.find(thisAssignee => assignee.name === thisAssignee.name);
-    if (assignedAssignee != null) { //send back error if is null
-        taskToUpdate.assignee = assignedAssignee
-    }
-    else {
-        return res.status(400).json({ error: 'Invalid task status provided for task' });
-    }
-    console.log("task status ", taskStatus);
-    let assignedTaskStatus = taskStatusList.find(status => taskStatus.id === status.id);
-    if (assignedTaskStatus != null) { //send back error if it is null
-        taskToUpdate.taskStatus = assignedTaskStatus;
-    }
-    else {
-        return res.status(400).json({ error: 'Invalid task status provided for milestone' });
-    }
-
-    //taskToUpdate.taskStatus = taskStatus; 
-
-    res.json({ message: '[SERVER] Task updated successfully', task: taskToUpdate }); //make better from below 
-
-});
-
-app.post("/api/tasks", (req, res) => {
-    const { name, description, roadmaps, assignee, startDate, endDate, taskStatus } = req.body;
 
     try {
-        const newTask =  createTask(name, description, roadmaps, assignee, startDate, endDate, taskStatus);
-        if (!newTask) {
-            return res.status(400).json({ error: 'Task could not be created' });
-        }
-        res.status(201).json(newTask);
+       
+        const tasks: any[] = await queryPostgres(getEverything);
+        if (!tasks || tasks.length === 0) {
+            res.status(400).send(formatMessageToClient('Error with query; no results returned'));
+        };
 
+        let taskList: Task[] = [];
+        await Promise.all(tasks.map(async (t) => {
+
+            const roadmapArray: Roadmap[] = [];
+            if (roadmaps === 'true') {
+                const roadmapList: any[] = await queryPostgres(roadmapQ, [t.task_id]);
+
+                roadmapList.forEach(roadmap => {
+                    roadmapArray.push(new Roadmap(roadmap.name, roadmap.description, roadmap.id, roadmap.type));
+                });
+            };
+
+            const tagArray: Tag[] = [];
+            if (tags === 'true') {
+                const tagsList: any[] = await queryPostgres(tagsQ, [t.task_id]);
+                tagsList.forEach(tag => {
+                    tagArray.push(new Tag(tag.name, tag.description, tag.id, tag.type));
+                });
+            };
+
+            const assignee = new Assignee(t.assignee_name, t.assignee_description, t.assignee_id, t.assignee_type_id);
+            const taskStatus = new TaskStatus(t.task_status_name, t.task_status_description, t.task_status_id, t.task_status_type_id);
+            taskList.push(new Task(
+                t.task_name, t.task_description, roadmapArray, tagArray, assignee, t.start_date, t.end_date, taskStatus, t.task_id, t.type_id));
+        }));
+
+        res.send({ message: taskList }); //remove message and fix frontend
     } catch (err) {
-        console.error('Error creating task:', err);
-        res.status(500).json({ error: 'Internal Server Error' });
+        console.error('Error fetching task:', err);
+        res.status(500).send(formatMessageToClient('Error fetching tasks'));
+    };
+});
+
+app.get("/api/tasks/:id", async (req, res) => {
+    const { roadmaps, tags } = req.query;
+    const id = parseInt(req.params.id);
+
+    if (roadmaps && !isBooleanStringValidator(roadmaps as String) || (tags && !isBooleanStringValidator(tags as String))) {
+        console.log("error: parameters must be in correct format");
+        return res.status(400).json({ error: 'Parameters must be in correct format' });
+    }
+
+    const roadmapQ: string = `
+    SELECT r.*
+    FROM Roadmap r
+    JOIN TaskRoadmap tr ON r.id = tr.roadmap_id
+    WHERE tr.task_id = $1;`;
+
+    const tagsQ: string = `
+    SELECT t.*
+    FROM Tag t
+    JOIN TaskTag tt ON t.id = tt.tag_id
+    WHERE tt.task_id = $1;`;
+
+    const getEverything = `
+    SELECT
+        t.id AS task_id,
+        t.name AS task_name,
+        t.description AS task_description,
+        t.start_date,
+        t.end_date,
+        a.id AS assignee_id,
+        a.name AS assignee_name,
+        a.description AS assignee_description,
+        a.type_id AS assignee_type_id,
+        ts.id AS task_status_id,
+        ts.name AS task_status_name,
+        ts.description AS task_status_description,
+        ts.type_id AS task_status_type_id,
+        ty.id AS type_id,
+        ty.name AS type_name
+    FROM
+        Task t
+    JOIN
+        Assignee a ON t.assignee_id = a.id
+    JOIN
+        TaskStatus ts ON t.status_id = ts.id
+    JOIN
+        UnitType ty ON t.type_id = ty.id
+        WHERE
+    t.id = $1;
+    `;
+
+
+    try {
+
+        const tasks: any[] = await queryPostgres(getEverything, [id]);
+        if (!tasks || tasks.length === 0) {
+            res.status(400).send(formatMessageToClient('Error with query; no results returned'));
+        };
+
+        const t = tasks[0];
+
+
+        const roadmapArray: Roadmap[] = [];
+        if (roadmaps === 'true') {
+            const roadmapList: any[] = await queryPostgres(roadmapQ, [t.task_id]);
+
+            roadmapList.forEach(roadmap => {
+                roadmapArray.push(new Roadmap(roadmap.name, roadmap.description, roadmap.id, roadmap.type));
+            });
+        };
+
+        const tagArray: Tag[] = [];
+        if (tags === 'true') {
+            const tagsList: any[] = await queryPostgres(tagsQ, [t.task_id]);
+            tagsList.forEach(tag => {
+                tagArray.push(new Tag(tag.name, tag.description, tag.id, tag.type));
+            });
+        };
+
+        const assignee = new Assignee(t.assignee_name, t.assignee_description, t.assignee_id, t.assignee_type_id);
+        const taskStatus = new TaskStatus(t.task_status_name, t.task_status_description, t.task_status_id, t.task_status_type_id);
+        const task = new Task(
+            t.task_name, t.task_description, roadmapArray, tagArray, assignee, t.start_date, t.end_date, taskStatus, t.task_id, t.type_id);
+
+
+        res.send({ message: task }); //remove message and fix frontend
+    } catch (err) {
+        console.error('Error fetching task:', err);
+        res.status(500).send(formatMessageToClient('Error fetching task'));
+    }
+
+});
+
+app.put("/api/tasks/:id", async (req, res) => { 
+    const id = parseInt(req.params.id);
+
+    const { name, description, assigneeId, startDate, endDate, taskStatusId, tags, roadmaps } = req.body;
+
+    if (!validator.isLength(name, { max: 255 })) {
+        return res.status(400).json({ error: formatMessageToClient('Name is too long for task ' + name) });
+    }
+    if (!validator.isLength(description, { max: 255 })) {
+        return res.status(400).json({ error: formatMessageToClient('Description is too long for task ' + name) });
+    }
+    if (!dayjs(startDate, 'YYYY-MM-DD', true).isValid()) {
+        return res.status(400).json({ error: formatMessageToClient('Date format is not correct for task ' + name) });
+    }
+    if (!dayjs(endDate, 'YYYY-MM-DD', true).isValid()) {
+        return res.status(400).json({ error: formatMessageToClient('Date format is not correct for task ' + name) });
+    }
+    if (taskStatusId && !isNumValidator(taskStatusId)) {
+        return res.status(400).json({ error: formatMessageToClient('ID for task ' + name + 'is invalid') });
+    }
+    if (!isArrayOfNumbersValidator(tags)) {
+        return res.status(400).json({ error: formatMessageToClient('Params for task ' + name + 'is invalid') });
+    }
+    if (!isArrayOfNumbersValidator(roadmaps)) {
+        return res.status(400).json({ error: formatMessageToClient('Params for task ' + name + 'is invalid') });
+    }
+    if (!isNumValidator(id)) {
+        return res.status(400).json({ error: formatMessageToClient('ID for task is invalid') });
+    }
+    if (!isNumValidator(assigneeId)) {
+        return res.status(400).json({ error: formatMessageToClient('ID for assignee is invalid') });
+    }
+
+    const insertRowIntoTaskTagQ = `
+    INSERT INTO TaskTag (task_id, tag_id)
+    VALUES ($1, $2)
+    `;
+
+    const insertRowIntoTaskRoadmapQ = `
+    INSERT INTO TaskRoadmap (task_id, roadmap_id)
+    VALUES ($1, $2)
+    `;
+
+    const updateTaskQ = `
+    UPDATE Task
+    SET name = $1,
+        description = $2,
+        start_date = $3,
+        end_date = $4,
+        assignee_id = $5,
+        status_id = $6
+    WHERE id = $7
+    RETURNING *;
+  `;
+
+    const getAllRowsFromTaskTagByTaskIdQ = `
+    SELECT *
+    FROM TaskTag
+	WHERE task_id = $1;
+    ` ;
+
+    const getAllRowsFromTaskRoadmapByTaskIdQ = `
+    SELECT *
+    FROM TaskRoadmap
+	WHERE task_id = $1;
+    ` ;
+
+    const deleteRowFromTaskTagQ = `
+    DELETE FROM TaskTag WHERE task_id = $1 AND tag_id = $2
+    `;
+
+    const deleteRowFromTaskRoadmapQ = `
+    DELETE FROM TaskRoadmap WHERE task_id = $1 AND roadmap_id = $2
+    `;
+
+    try {
+
+        const item = await queryPostgres(updateTaskQ, [name, description, startDate, endDate, assigneeId, taskStatusId,id]);
+
+        //tags
+        const dbTagRows: any[] = await queryPostgres(getAllRowsFromTaskTagByTaskIdQ, [id]);
+        const tagArrayFromParams: number[] = Array.isArray(tags) ? tags : JSON.parse(tags);
+        let newTagRows: any[] = [];
+        tagArrayFromParams.map(tag => {
+            newTagRows.push({
+                task_id: id,
+                tag_id: tag
+            });
+        });
+
+        const rowsToDelete = dbTagRows.filter(dbRow =>
+            !newTagRows.some(newRow => newRow.task_id === dbRow.task_id && newRow.tag_id === dbRow.tag_id)
+        );
+
+        const rowsToInsert = newTagRows.filter(newRow =>
+            !dbTagRows.some(dbRow => dbRow.task_id === newRow.task_id && dbRow.tag_id === newRow.tag_id)
+        );
+
+        await Promise.all(rowsToDelete.map(async row => {
+            await queryPostgres(deleteRowFromTaskTagQ, [row.task_id, row.tag_id]);
+        }));
+
+        await Promise.all(rowsToInsert.map(async row => {
+            await queryPostgres(insertRowIntoTaskTagQ, [row.task_id, row.tag_id]);
+        }));
+
+        //roadmaps
+        const dbRoadmapRows: any[] = await queryPostgres(getAllRowsFromTaskRoadmapByTaskIdQ, [id]);
+        const roadmapArrayFromParams: number[] = Array.isArray(roadmaps) ? roadmaps : JSON.parse(roadmaps);
+        let newRoadmapRows: any[] = [];
+        roadmapArrayFromParams.map(map => {
+            newRoadmapRows.push({
+                roadmap_id: map,
+                task_id: id
+            });
+        });
+
+        const roadmapRowsToDelete = dbRoadmapRows.filter(dbRow =>
+            !newTagRows.some(newRow => newRow.task_id === dbRow.task_id && newRow.roadmap_id === dbRow.roadmap_id)
+        );
+        console.log("delete", roadmapRowsToDelete)
+        const roadmapRowsToInsert = newRoadmapRows.filter(newRow =>
+            !dbTagRows.some(dbRow => dbRow.task_id === newRow.task_id && dbRow.roadmap_id === newRow.roadmap_id)
+        );
+        console.log("insert", roadmapRowsToInsert)
+
+        await Promise.all(roadmapRowsToDelete.map(async row => {
+            await queryPostgres(deleteRowFromTaskRoadmapQ, [row.task_id, row.roadmap_id]);
+        }));
+
+        await Promise.all(roadmapRowsToInsert.map(async row => {
+            await queryPostgres(insertRowIntoTaskRoadmapQ, [row.task_id, row.roadmap_id,]);
+        }));
+
+        //send message
+        let clientMessage: string = 'Task successfully updated.\n';
+
+        if (item.length > 0) {
+            res.status(201).json({ item, message: clientMessage });
+        } else {
+            res.status(400).json({ error: formatMessageToClient('Task ' + name + ' could not be updated') });
+        }
+    } catch (err) {
+        console.error('Error fetching task:', err);
+        res.status(500).send(formatMessageToClient('Error fetching task'));
+    };
+
+
+});
+
+app.post("/api/tasks", async (req, res) => { //THIS ONE 
+    const { name, description, startDate, endDate, assigneeId, taskStatusId, tags, roadmaps } = req.body;
+
+    if (!validator.isLength(name, { max: 255 })) {
+        return res.status(400).json({ error: formatMessageToClient('Name is too long for milestone ' + name) });
+    }
+    if (!validator.isLength(description, { max: 255 })) {
+        return res.status(400).json({ error: formatMessageToClient('Description is too long for milestone ' + name) });
+    }
+    if (!dayjs(startDate, 'YYYY-MM-DD', true).isValid()) {
+        return res.status(400).json({ error: formatMessageToClient('Date format is not correct for milestone ' + name) });
+    }
+    if (!dayjs(endDate, 'YYYY-MM-DD', true).isValid()) {
+        return res.status(400).json({ error: formatMessageToClient('Date format is not correct for milestone ' + name) });
+    }
+    if (taskStatusId && !isNumValidator(taskStatusId)) {
+        return res.status(400).json({ error: formatMessageToClient('ID for milestone ' + name + 'is invalid') });
+    }
+    if (assigneeId && !isNumValidator(assigneeId)) {
+        return res.status(400).json({ error: formatMessageToClient('ID for milestone ' + name + 'is invalid') });
+    }
+    if (!isArrayOfNumbersValidator(tags)) {
+        return res.status(400).json({ error: formatMessageToClient('Params for milestone ' + name + 'is invalid') });
+    }
+    if (!isArrayOfNumbersValidator(roadmaps)) {
+        return res.status(400).json({ error: formatMessageToClient('Params for milestone ' + name + 'is invalid') });
+    }
+
+    const q: string = `
+    INSERT INTO Task (name, description, start_date, end_date, assignee_id, status_id)
+    VALUES ($1, $2, $3, $4, $5, $6)
+    RETURNING *;
+`;
+
+    const insertIntoTaskTag = `
+    INSERT INTO TaskTag (task_id, tag_id)
+    VALUES ($1, $2)
+    `
+
+    const insertIntoTaskRoadmap = `
+    INSERT INTO TaskRoadmap (task_id, roadmap_id)
+    VALUES ($1, $2)
+    `
+
+    try {
+        const newItem = await queryPostgres(q, [name, description, startDate, endDate, assigneeId, taskStatusId]);
+        console.log("new item id", newItem)
+        const tagArray: number[] = Array.isArray(tags) ? tags : JSON.parse(tags);
+        let clientMessage: string = 'Milestone successfully made.\n';
+        await Promise.all(tagArray.map(async (tagId) => {
+            try {
+                await queryPostgres(insertIntoTaskTag, [newItem[0].id, tagId]);
+            }
+            catch (err: any) {
+                if (err.code === '23505') {
+                    console.error("Error: Duplicate entry but its fine");
+                    clientMessage += 'Tag is already attached to task \n'
+                }
+                if (err.code === '23503') {
+                    clientMessage += 'Tags given does not exist but task still was made. \n'
+                }
+            }
+        }));
+
+        const roadmapArray: number[] = Array.isArray(roadmaps) ? roadmaps : JSON.parse(roadmaps);
+        await Promise.all(roadmapArray.map(async (mapId) => {
+            try {
+                await queryPostgres(insertIntoTaskRoadmap, [mapId, newItem[0].id,]);
+            }
+            catch (err: any) {
+                if (err.code === '23505') {
+                    console.error("Error: Duplicate entry but its fine");
+                    clientMessage += 'Roadmap is already attached to task.\n'
+                }
+                if (err.code === '23503') {
+                    clientMessage += 'Roadmaps given does not exist but task still was made. \n'
+                }
+            }
+        }));
+
+        if (newItem.length > 0) {
+            res.status(201).json({ newItem, message: clientMessage });
+        } else {
+            res.status(400).json({ error: formatMessageToClient('Task ' + name + ' could not be created') });
+        }
+    } catch (err) {
+        console.error('Error creating task: ' + name, err);
+        res.status(500).json({ error: formatMessageToClient('Internal Server Error') });
     }
 }); 
 
-app.delete("/api/tasks/:id", (req, res) => {
+app.delete("/api/tasks/:id", async (req, res) => {
     const id = parseInt(req.params.id);
 
+    if (!isNumValidator(id)) {
+        return res.status(400).json({ error: formatMessageToClient('ID for task is invalid') });
+    }
+
+    const q = formatDeleteIdfromDatabaseQuery('Task', id);
+
     try {
+        const result = await queryPostgres(q);
 
-        const result = deleteTask(id)
-        if (result) {
-            return res.status(200).json("Task " + id + " is deleted");
+        if (result.length === 0) {
+            res.status(200).json({ message: formatMessageToClient('Task deleted successfully') });
+        } else {
+            res.status(404).json({ error: formatMessageToClient('Task not found- does not exist in records') });
         }
-        else {
-            return res.status(404).json({ error: 'Task not found- id does not match records' });
-        }
-
     } catch (err) {
         console.error('Error deleting task:', err);
-        res.status(500).json({ error: 'Internal Server Error' });
-    }
+        res.status(500).send(formatMessageToClient('Internal Server Error'));
+    };
 }); 
 //#endregion
 
-
-//#region Milestones ACTUALYL GOOD
+//#region Milestones ACTUALLY GOOD
 app.get("/api/milestones", async (req, res) => {
     const { roadmaps, tags} = req.query;
 
@@ -574,7 +931,6 @@ app.post("/api/milestones", async (req, res) => {
     }
 });
 
-
 app.delete("/api/milestones/:id", async (req, res) => {
     const id = parseInt(req.params.id);
 
@@ -598,7 +954,6 @@ app.delete("/api/milestones/:id", async (req, res) => {
         res.status(500).send(formatMessageToClient('Internal Server Error'));
     };
 }); 
-
 
 //#endregion
 
@@ -937,7 +1292,7 @@ app.delete("/api/taskstatus/:id", async (req, res) => {
 
 //#endregion
 
-// #region Roadmaps
+// #region Roadmaps ACTUALLY GOOD
 app.get("/api/roadmaps", async (req, res) => {
 
     const q: string = formatSelectAllFromTable('Roadmap');
