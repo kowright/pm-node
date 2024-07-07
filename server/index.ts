@@ -1,16 +1,13 @@
 import dotenv from "dotenv";
-import path from "path";
-import { myDateTime } from './test'
-import { Task, tasks, createTask, deleteTask} from './Task';
-import express, { Request, Response, Express, NextFunction, query } from 'express';
-import Roadmap, { roadmapMap, roadmaps, createRoadmap, deleteRoadmap } from "./Roadmap";
-import TaskStatus, { taskStatusMap, taskStatusList, createTaskStatus, deleteTaskStatus } from './TaskStatus';
-import Assignee, { assigneeMap, assignees, createAssignee, deleteAssignee } from './Assignee';
-import Milestone, { milestones, createMilestone, deleteMilestone } from "./Milestone";
-import { tags, createTag, deleteTag, Tag} from './Tag';
+import express, { Request, Response, Express, NextFunction } from 'express';
+import { Task } from './Task';
+import Roadmap from "./Roadmap";
+import TaskStatus from './TaskStatus';
+import Assignee from './Assignee';
+import Milestone from "./Milestone";
+import { Tag } from './Tag';
 const validator = require('validator'); 
 const dayjs = require('dayjs');
-
 
 const { Pool } = require('pg');
 
@@ -75,10 +72,6 @@ const formatSelectAllFromTable = (tableName: string) => {
 
 // #endregion
 
-app.get("/", (req: Request, res: Response) => {
-	res.send("Kortney's Express + TypeScript Server");
-});
-
 // #region Validators
 const isNumValidator = (id: number) => {
     if (isNaN(id) || id <= 0) {
@@ -107,8 +100,7 @@ function isArrayOfNumbersValidator(tags: any): boolean {
 
 // #endregion
 
-
-//#region Tasks
+//#region Tasks ACTUALLY GOOD
 app.get("/api/tasks", async (req: Request, res: Response) => {
     const { roadmaps, tags } = req.query;
 
@@ -189,8 +181,7 @@ app.get("/api/tasks", async (req: Request, res: Response) => {
             taskList.push(new Task(
                 t.task_name, t.task_description, roadmapArray, tagArray, assignee, t.start_date, t.end_date, taskStatus, t.task_id, t.type_id));
         }));
-
-        res.send({ message: taskList }); //remove message and fix frontend
+        res.status(200).send(taskList);
     } catch (err) {
         console.error('Error fetching task:', err);
         res.status(500).send(formatMessageToClient('Error fetching tasks'));
@@ -281,7 +272,7 @@ app.get("/api/tasks/:id", async (req, res) => {
             t.task_name, t.task_description, roadmapArray, tagArray, assignee, t.start_date, t.end_date, taskStatus, t.task_id, t.type_id);
 
 
-        res.send({ message: task }); //remove message and fix frontend
+        res.status(200).send(task);
     } catch (err) {
         console.error('Error fetching task:', err);
         res.status(500).send(formatMessageToClient('Error fetching task'));
@@ -427,9 +418,9 @@ app.put("/api/tasks/:id", async (req, res) => {
         let clientMessage: string = 'Task successfully updated.\n';
 
         if (item.length > 0) {
-            res.status(201).json({ item, message: clientMessage });
+            res.status(201).json(item);
         } else {
-            res.status(400).json({ error: formatMessageToClient('Task ' + name + ' could not be updated') });
+            res.status(400).json(formatMessageToClient('Task ' + name + ' could not be updated'));
         }
     } catch (err) {
         console.error('Error fetching task:', err);
@@ -520,13 +511,13 @@ app.post("/api/tasks", async (req, res) => { //THIS ONE
         }));
 
         if (newItem.length > 0) {
-            res.status(201).json({ newItem, message: clientMessage });
+            res.status(201).json(newItem);
         } else {
-            res.status(400).json({ error: formatMessageToClient('Task ' + name + ' could not be created') });
+            res.status(400).json(formatMessageToClient('Task ' + name + ' could not be created'));
         }
     } catch (err) {
         console.error('Error creating task: ' + name, err);
-        res.status(500).json({ error: formatMessageToClient('Internal Server Error') });
+        res.status(500).json(formatMessageToClient('Internal Server Error'));
     }
 }); 
 
@@ -543,9 +534,9 @@ app.delete("/api/tasks/:id", async (req, res) => {
         const result = await queryPostgres(q);
 
         if (result.length === 0) {
-            res.status(200).json({ message: formatMessageToClient('Task deleted successfully') });
+            res.status(200).json();
         } else {
-            res.status(404).json({ error: formatMessageToClient('Task not found- does not exist in records') });
+            res.status(404).json(formatMessageToClient('Task not found- does not exist in records'));
         }
     } catch (err) {
         console.error('Error deleting task:', err);
@@ -625,7 +616,7 @@ app.get("/api/milestones", async (req, res) => {
         }));
 
 
-        res.send({ message: milestoneList }); //remove message and fix frontend
+        res.status(200).send(milestoneList);
     } catch (err) {
         console.error('Error fetching milestones:', err);
         res.status(500).send(formatMessageToClient('Error fetching milestones'));
@@ -835,9 +826,9 @@ app.put("/api/milestones/:id", async (req, res) => {
         let clientMessage: string = 'Milestone successfully updated.\n';
 
         if (item.length > 0) {
-            res.status(201).json({ item, message: clientMessage });
+            res.status(201).json(item);
         } else {
-            res.status(400).json({ error: formatMessageToClient('Milestone ' + name + ' could not be updated') });
+            res.status(400).json(formatMessageToClient('Milestone ' + name + ' could not be updated'));
         }
     } catch (err) {
         console.error('Error fetching milestone:', err);
@@ -921,13 +912,13 @@ app.post("/api/milestones", async (req, res) => {
         }));
 
         if (newItem.length > 0) {
-            res.status(201).json({ newItem, message: clientMessage });
+            res.status(201).json(newItem);
         } else {
-            res.status(400).json({ error: formatMessageToClient('Milestone ' + name + ' could not be created') });
+            res.status(400).json(formatMessageToClient('Milestone ' + name + ' could not be created'));
         }
     } catch (err) {
         console.error('Error creating milestone: ' + name, err);
-        res.status(500).json({ error: formatMessageToClient('Internal Server Error') });
+        res.status(500).json(formatMessageToClient('Internal Server Error'));
     }
 });
 
@@ -945,9 +936,9 @@ app.delete("/api/milestones/:id", async (req, res) => {
         const result = await queryPostgres(q);
 
         if (result.length === 0) {
-            res.status(200).json({ message: formatMessageToClient('Milestone deleted successfully') });
+            res.status(200).json();
         } else {
-            res.status(404).json({ error: formatMessageToClient('Milestone not found- does not exist in records') });
+            res.status(404).json(formatMessageToClient('Milestone not found- does not exist in records'));
         }
     } catch (err) {
         console.error('Error deleting milestone:', err);
@@ -966,7 +957,7 @@ app.get("/api/assignees", async (req, res) => {
         if (!list || list.length === 0) {
             res.status(400).send(formatMessageToClient('Error with query; no results returned'));
         };
-        res.send({ message: list }); //remove message and fix frontend
+        res.status(200).send(list); 
     } catch (err) {
         console.error('Error fetching assignees:', err);
         res.status(500).send(formatMessageToClient('Error fetching assignees'));
@@ -984,7 +975,7 @@ app.get("/api/assignees/:id", async (req, res) => {
 
     try {
         const item = await queryPostgres(q);
-        res.send(item[0]);
+        res.status(200).send(item[0]);
     } catch (err) {
         console.error('Error fetching assignee:', err);
         res.status(500).send(formatMessageToClient('Error fetching assignee'));
@@ -1002,7 +993,7 @@ app.put("/api/assignees/:id", async (req, res) => {
 
     try {
         const item = await queryPostgres(q);
-        res.send(item[0]);
+        res.status(200).send(item[0]);
     } catch (err) {
         console.error('Error fetching assignee:', err);
         res.status(500).send(formatMessageToClient('Error fetching assignee'));
@@ -1031,11 +1022,11 @@ app.post("/api/assignees", async (req, res) => {
         if (newItem.length > 0) {
             res.status(201).json(newItem);
         } else {
-            res.status(400).json({ error: formatMessageToClient('Assignee ' + name + ' could not be created') });
+            res.status(400).json(formatMessageToClient('Assignee ' + name + ' could not be created'));
         }
     } catch (err) {
         console.error('Error creating assignee: ' + name, err);
-        res.status(500).json({ error: formatMessageToClient('Internal Server Error') });
+        res.status(500).json(formatMessageToClient('Internal Server Error'));
     }
 });
 
@@ -1053,9 +1044,9 @@ app.delete("/api/assignees/:id", async (req, res) => {
         const result = await queryPostgres(q);
 
         if (result.length === 0) {
-            res.status(200).json({ message: formatMessageToClient('Assignee deleted successfully') });
+            res.status(200).json();
         } else {
-            res.status(404).json({ error: formatMessageToClient('Assignee not found- does not exist in records') });
+            res.status(404).json(formatMessageToClient('Assignee not found- does not exist in records'));
         }
     } catch (err) {
         console.error('Error deleting assignee:', err);
@@ -1074,12 +1065,11 @@ app.get("/api/tags", async (req, res) => {
         if (!tagList) {
             res.status(400).send(formatMessageToClient('Error with query; no results returned'));
         };
-        res.send({ message: tagList }); //remove message and fix frontend
+        res.status(200).send(tagList);
     } catch (err) {
         console.error('Error fetching tags:', err);
         res.status(500).send(formatMessageToClient('Error fetching tags'));
     };
-   // res.send({ message: tags });
 });
 
 app.put("/api/tags/:id", async (req, res) => { 
@@ -1145,11 +1135,11 @@ app.post("/api/tags", async (req, res) => {
         if (newItem.length > 0) {
             res.status(201).json(newItem);
         } else {
-            res.status(400).json({ error: formatMessageToClient('Tag ' + name + ' could not be created') });
+            res.status(400).json(formatMessageToClient('Tag ' + name + ' could not be created'));
         }
     } catch (err) {
         console.error('Error creating tag: ' + name, err);
-        res.status(500).json({ error: formatMessageToClient('Internal Server Error') });
+        res.status(500).json(formatMessageToClient('Internal Server Error'));
     }
 });
 
@@ -1167,9 +1157,9 @@ app.delete("/api/tags/:id", async (req, res) => {
         const result = await queryPostgres(q);
 
         if (result.length === 0) {
-            res.status(200).json({ message: formatMessageToClient('Tag deleted successfully') });
+            res.status(200).json();
         } else {
-            res.status(404).json({ error: formatMessageToClient('Tag not found- does not exist in records') });
+            res.status(404).json(formatMessageToClient('Tag not found- does not exist in records'));
         }
     } catch (err) {
         console.error('Error deleting tag:', err);
@@ -1187,7 +1177,7 @@ app.get("/api/taskstatus", async (req, res) => {
         if (!list) {
             res.status(400).send(formatMessageToClient('Error with query; no results returned'));
         };
-        res.send({ message: list }); //remove message and fix frontend
+        res.status(200).send(list);
     } catch (err) {
         console.error('Error fetching task status:', err);
         res.status(500).send(formatMessageToClient('Error fetching task status'));
@@ -1205,7 +1195,7 @@ app.get("/api/taskstatus/:id", async (req, res) => {
 
     try {
         const item = await queryPostgres(q);
-        res.send(item[0]);
+        res.status(200).send(item[0]);
     } catch (err) {
         console.error('Error fetching task status:', err);
         res.status(500).send(formatMessageToClient('Error fetching task status'));
@@ -1258,11 +1248,11 @@ app.post("/api/taskstatus", async (req, res) => {
         if (newItem.length > 0) {
             res.status(201).json(newItem);
         } else {
-            res.status(400).json({ error: formatMessageToClient('Task Status ' + name + ' could not be created') });
+            res.status(400).json(formatMessageToClient('Task Status ' + name + ' could not be created'));
         }
     } catch (err) {
         console.error('Error creating task status: ' + name, err);
-        res.status(500).json({ error: formatMessageToClient('Internal Server Error') });
+        res.status(500).json(formatMessageToClient('Internal Server Error'));
     }
 });
 
@@ -1280,9 +1270,9 @@ app.delete("/api/taskstatus/:id", async (req, res) => {
         const result = await queryPostgres(q);
 
         if (result.length === 0) {
-            res.status(200).json({ message: formatMessageToClient('Task Status deleted successfully') });
+            res.status(200).json();
         } else {
-            res.status(404).json({ error: formatMessageToClient('Task Status not found- does not exist in records') });
+            res.status(404).json(formatMessageToClient('Task Status not found- does not exist in records'));
         }
     } catch (err) {
         console.error('Error deleting task status:', err);
@@ -1310,7 +1300,7 @@ app.get("/api/roadmaps", async (req, res) => {
                 new Roadmap(map.name, map.description, map.id, map.type_id));
         });
 
-        res.send({ message: roadmapList }); //remove message and fix frontend
+        res.status(200).send(roadmapList); 
     } catch (err) {
         console.error('Error fetching roadmaps:', err);
         res.status(500).send(formatMessageToClient('Error fetching roadmaps'));
@@ -1328,7 +1318,7 @@ app.get("/api/roadmaps/:id", async (req, res) => {
 
     try {
         const item = await queryPostgres(q);
-        res.send(item[0]);
+        res.status(200).send(item[0]);
     } catch (err) {
         console.error('Error fetching roadmap:', err);
         res.status(500).send(formatMessageToClient('Error fetching roadmap'));
@@ -1381,11 +1371,11 @@ app.post("/api/roadmaps", async (req, res) => {
         if (newItem.length > 0) {
             res.status(201).json(newItem);
         } else {
-            res.status(400).json({ error: formatMessageToClient('Roadmap ' + name + ' could not be created') });
+            res.status(400).json(formatMessageToClient('Roadmap ' + name + ' could not be created'));
         }
     } catch (err) {
         console.error('Error creating roadmap: ' + name, err);
-        res.status(500).json({ error: formatMessageToClient('Internal Server Error') });
+        res.status(500).json(formatMessageToClient('Internal Server Error'));
     }
 });
 
@@ -1403,9 +1393,9 @@ app.delete("/api/roadmaps/:id", async (req, res) => {
         const result = await queryPostgres(q);
 
         if (result.length === 0) {
-            res.status(200).json({ message: formatMessageToClient('Roadmap deleted successfully') });
+            res.status(200).json();
         } else {
-            res.status(404).json({ error: formatMessageToClient('Roadmap not found- does not exist in records') });
+            res.status(404).json(formatMessageToClient('Roadmap not found- does not exist in records'));
         }
     } catch (err) {
         console.error('Error deleting roadmap:', err);
@@ -1424,7 +1414,7 @@ app.get("/api/unittypes", async (req, res) => {
         if (!unitTypesList) {
             res.status(400).send(formatMessageToClient('Error with query; no results returned'));
         };
-        res.send({ message: unitTypesList }); //remove message and fix frontend
+        res.status(200).send(unitTypesList); //remove message and fix frontend
     } catch (err) {
         console.error('Error fetching unit types:', err);
         res.status(500).send(formatMessageToClient('Error fetching unit types'));
@@ -1435,7 +1425,7 @@ app.get("/api/unittypes/:id", async (req, res) => {
     const typeId = parseInt(req.params.id);
 
     if (!isNumValidator(typeId)) {
-        return res.status(400).json({ error: formatMessageToClient('ID for unittype is invalid') });
+        return res.status(400).json(formatMessageToClient('ID for unittype is invalid'));
     }
 
     const q: string = formatSelectIdfromDatabaseQuery('UnitType', typeId); 
@@ -1443,7 +1433,7 @@ app.get("/api/unittypes/:id", async (req, res) => {
     try { 
         const item = await queryPostgres(q);
         console.log("get id ", item)
-        res.send(item[0]); 
+        res.status(200).send(item[0]); 
     } catch (err) { 
         console.error('Error fetching unit type item:', err);
         res.status(500).send(formatMessageToClient('Error fetching unit type item'));
@@ -1472,6 +1462,10 @@ app.put("/api/unittypes/:id", async (req, res) => {
 
 // #endregion
 
+app.get("/", (req: Request, res: Response) => {
+    res.send("Kortney's Express + TypeScript Server");
+});
+
 app.use((err: any, req: Request, res: Response, next: NextFunction) => {
     console.error(err.stack);
     res.status(500).json({ error: 'Internal Server Error' });
@@ -1480,6 +1474,5 @@ app.use((err: any, req: Request, res: Response, next: NextFunction) => {
 app.listen(port, () => {
     console.log(`[server]: Server is running at http://localhost:${port}`)
 });
-
 
 //FOR ID, maybe use a prefix as an identifier? 
