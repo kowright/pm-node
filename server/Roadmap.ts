@@ -1,5 +1,4 @@
-import { milestoneMap } from './Milestone';
-import Milestone, { milestones } from './Milestone';
+
 import Tag, { tagsMap } from './Tag';
 import { UnitType, BaseType } from './UnitTypes';
 

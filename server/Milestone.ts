@@ -13,30 +13,31 @@ export interface MilestoneInterface extends BaseType {
 export class Milestone implements MilestoneInterface {
     name: string;
     description: string;
+    roadmaps: Roadmap[];
+    tags: Tag[];
     date: Date;
     taskStatus: TaskStatus;
     id: number;
     type: number;
-    roadmaps: Roadmap[];
-    tags: Tag[];
 
     constructor(
         name: string,
         description: string,
+        roadmaps: Roadmap[],
+        tags: Tag[],
         date: Date,
         taskStatus: TaskStatus,
         id: number,
-        roadmaps: Roadmap[],
-        tags: Tag[],
         type: number,
     ) {
+        //below determines order of fields
         this.name = name;
         this.description = description;
+        this.roadmaps = roadmaps;
+        this.tags = tags;
         this.date = date;
         this.taskStatus = taskStatus;
         this.id = id;
-        this.roadmaps = roadmaps;
-        this.tags = tags;
         this.type = type;
     }
 
@@ -44,7 +45,7 @@ export class Milestone implements MilestoneInterface {
         return this.name;
     }
 }
-
+/*
 export const milestones: Milestone[] = [
     new Milestone(
         "Project Done",
@@ -126,6 +127,6 @@ export function deleteMilestone(id: number): boolean {
 
     return true;
 }
-
+*/
 
 export default Milestone;

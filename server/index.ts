@@ -611,8 +611,8 @@ app.get("/api/milestones", async (req, res) => {
                
             }
   
-            milestoneList.push(new Milestone(ms.name, ms.description, ms.date, taskStatus,
-                ms.id, roadmapArray, tagArray, ms.type_id));
+            milestoneList.push(new Milestone(ms.name, ms.description, roadmapArray, tagArray, ms.date, taskStatus,
+                ms.id, ms.type_id));
         }));
 
 
@@ -687,8 +687,8 @@ app.get("/api/milestones/:id", async (req, res) => {
             return;
         }
 
-        const newItem = new Milestone(item.name, item.description, item.date, taskStatus,
-            item.id, roadmapArray, tagArray, item.type_id)
+        const newItem = new Milestone(item.name, item.description, roadmapArray, tagArray, item.date, taskStatus,
+            item.id, item.type_id)
             console.log("new item", newItem)
         res.send(newItem);
     } catch (err) {
@@ -834,7 +834,6 @@ app.put("/api/milestones/:id", async (req, res) => {
         console.error('Error fetching milestone:', err);
         res.status(500).send(formatMessageToClient('Error fetching milestone'));
     };
-
 });
 
 app.post("/api/milestones", async (req, res) => {
@@ -953,11 +952,18 @@ app.get("/api/assignees", async (req, res) => {
     const q: string = formatSelectAllFromTable('Assignee');
 
     try {
-        const list = await queryPostgres(q);
+        const list: any[] = await queryPostgres(q);
         if (!list || list.length === 0) {
             res.status(400).send(formatMessageToClient('Error with query; no results returned'));
         };
-        res.status(200).send(list); 
+        const newList: Assignee[] = [];
+        list.map(a => {
+            newList.push(new Assignee(
+                a.name, a.description, a.id, a.type_id
+            ))
+        });
+
+        res.status(200).send(newList); 
     } catch (err) {
         console.error('Error fetching assignees:', err);
         res.status(500).send(formatMessageToClient('Error fetching assignees'));
@@ -968,17 +974,20 @@ app.get("/api/assignees/:id", async (req, res) => {
     const id = parseInt(req.params.id);
 
     if (!isNumValidator(id)) {
-        return res.status(400).json({ error: formatMessageToClient('ID for assignee is invalid') });
+        return res.status(400).json(formatMessageToClient('ID for assignee is invalid'));
     }
 
     const q: string = formatSelectIdfromDatabaseQuery('Assignee', id);
 
     try {
         const item = await queryPostgres(q);
-        res.status(200).send(item[0]);
+
+        const newItem = new Assignee(item[0].name, item[0].description, item[0].id, item[0].type_id);
+
+        res.status(200).send(newItem);
     } catch (err) {
         console.error('Error fetching assignee:', err);
-        res.status(500).send(formatMessageToClient('Error fetching assignee'));
+        res.status(500).send(formatMessageToClient('Error fetching assignee')); 
     };
 }); 
 
@@ -986,14 +995,17 @@ app.put("/api/assignees/:id", async (req, res) => {
     const id = parseInt(req.params.id);
 
     if (!isNumValidator(id)) {
-        return res.status(400).json({ error: formatMessageToClient('ID for assignee is invalid') });
+        return res.status(400).json(formatMessageToClient('ID for assignee is invalid'));
     }
 
     const q: string = formatSelectIdfromDatabaseQuery('Assignee', id);
 
     try {
         const item = await queryPostgres(q);
-        res.status(200).send(item[0]);
+
+        const updatedItem = new Assignee(item[0].name, item[0].description, item[0].id, item[0].type_id);
+
+        res.status(200).send(updatedItem);
     } catch (err) {
         console.error('Error fetching assignee:', err);
         res.status(500).send(formatMessageToClient('Error fetching assignee'));
@@ -1004,10 +1016,10 @@ app.post("/api/assignees", async (req, res) => {
     const { name, description } = req.body;
 
     if (!validator.isLength(name, { max: 255 })) {
-        return res.status(400).json({ error: formatMessageToClient('Name is too long for tag ' + name) });
+        return res.status(400).json(formatMessageToClient('Name is too long for tag ' + name));
     }
     if (!validator.isLength(description, { max: 255 })) {
-        return res.status(400).json({ error: formatMessageToClient('Description is too long for tag ' + name) });
+        return res.status(400).json(formatMessageToClient('Description is too long for tag ' + name));
     }
 
     const q: string = `
@@ -1035,7 +1047,7 @@ app.delete("/api/assignees/:id", async (req, res) => {
     const id = parseInt(req.params.id);
 
     if (!isNumValidator(id)) {
-        return res.status(400).json({ error: formatMessageToClient('ID for assignee is invalid') });
+        return res.status(400).json(formatMessageToClient('ID for assignee is invalid'));
     }
 
     const q = formatDeleteIdfromDatabaseQuery('Assignee', id);
@@ -1061,11 +1073,19 @@ app.get("/api/tags", async (req, res) => {
     const q: string = formatSelectAllFromTable('Tag');
 
     try {
-        const tagList = await queryPostgres(q);
+        const tagList: any[] = await queryPostgres(q);
         if (!tagList) {
             res.status(400).send(formatMessageToClient('Error with query; no results returned'));
         };
-        res.status(200).send(tagList);
+
+        let newList: Tag[] = [];
+        tagList.map(tag => {
+            newList.push(new Tag(
+                tag.name, tag.description, tag.id, tag.type_id
+            ))
+        });
+
+        res.status(200).send(newList);
     } catch (err) {
         console.error('Error fetching tags:', err);
         res.status(500).send(formatMessageToClient('Error fetching tags'));
@@ -1077,17 +1097,20 @@ app.put("/api/tags/:id", async (req, res) => {
     const { name, description } = req.body;
 
     if (!validator.isLength(name, { max: 255 })) {
-        return res.status(400).json({ error: formatMessageToClient('Name is too long for tag ' + name) });
+        return res.status(400).json(formatMessageToClient('Name is too long for tag ' + name));
     }
     if (!validator.isLength(description, { max: 255 })) {
-        return res.status(400).json({ error: formatMessageToClient('Description is too long for tag ' + name) });
+        return res.status(400).json(formatMessageToClient('Description is too long for tag ' + name));
     }
 
     const q: string = `UPDATE Tag SET name = $1, description = $2 WHERE id = ${id} RETURNING *`;
 
     try {
         const item = await queryPostgres(q, [name, description]);
-        res.status(200).send(item[0]);
+
+        const updatedItem = new Tag(item[0].name, item[0].description, item[0].id, item[0].type_id);
+
+        res.status(200).send(updatedItem);
     } catch (err) {
         console.error('Error updating unit type item: ' + id, err);
         res.status(500).send(formatMessageToClient('Error updating unit type item ' + id));
@@ -1106,7 +1129,9 @@ app.get("/api/tags/:id", async (req, res) => {
 
     try {
         const item = await queryPostgres(q);
-        res.send(item[0]);
+
+        const newItem = new Tag(item[0].name, item[0].description, item[0].id, item[0].type_id);
+        res.status(200).send(newItem);
     } catch (err) {
         console.error('Error fetching tag:', err);
         res.status(500).send(formatMessageToClient('Error fetching tag'));
@@ -1117,10 +1142,10 @@ app.post("/api/tags", async (req, res) => {
     const { name, description } = req.body;
 
     if (!validator.isLength(name, { max: 255 })) {
-        return res.status(400).json({ error: formatMessageToClient('Name is too long for tag ' + name) });
+        return res.status(400).json(formatMessageToClient('Name is too long for tag ' + name));
     }
     if (!validator.isLength(description, { max: 255 })) {
-        return res.status(400).json({ error: formatMessageToClient('Description is too long for tag ' + name) });
+        return res.status(400).json(formatMessageToClient('Description is too long for tag ' + name));
     }
 
     const q: string = `
