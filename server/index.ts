@@ -283,8 +283,10 @@ app.get("/api/tasks/:id", async (req, res) => {
 app.put("/api/tasks/:id", async (req, res) => { 
     const id = parseInt(req.params.id);
 
-    const { name, description, assigneeId, startDate, endDate, taskStatusId, tags, roadmaps } = req.body;
-
+    const { name, description, assignee, startDate, endDate, tags, roadmaps } = req.body;
+    const putTask: Task = req.body;
+    console.log('task', putTask)
+    console.log('task satus id ', putTask.taskStatus.id)
     if (!validator.isLength(name, { max: 255 })) {
         return res.status(400).json({ error: formatMessageToClient('Name is too long for task ' + name) });
     }
@@ -297,21 +299,31 @@ app.put("/api/tasks/:id", async (req, res) => {
     if (!dayjs(endDate, 'YYYY-MM-DD', true).isValid()) {
         return res.status(400).json({ error: formatMessageToClient('Date format is not correct for task ' + name) });
     }
-    if (taskStatusId && !isNumValidator(taskStatusId)) {
+    /*if (taskStatusId && !isNumValidator(taskStatusId)) {
         return res.status(400).json({ error: formatMessageToClient('ID for task ' + name + 'is invalid') });
-    }
-    if (!isArrayOfNumbersValidator(tags)) {
-        return res.status(400).json({ error: formatMessageToClient('Params for task ' + name + 'is invalid') });
-    }
-    if (!isArrayOfNumbersValidator(roadmaps)) {
-        return res.status(400).json({ error: formatMessageToClient('Params for task ' + name + 'is invalid') });
-    }
+    }*/
+    if (tags) {
+        const sentTags = tags as Tag[];
+        const tagIds = sentTags.map(tag => tag.id);
+        if (!isArrayOfNumbersValidator(tagIds)) {
+            return res.status(400).json({ error: formatMessageToClient('Params for task ' + name + 'is invalid') });
+        }
+    }        
+    if (roadmaps) {
+        const sentRoadmaps = roadmaps as Roadmap[];
+        const roadmapIds = sentRoadmaps.map(map => map.id);
+        if (!isArrayOfNumbersValidator(roadmapIds)) {
+            return res.status(400).json({ error: formatMessageToClient('Params for task ' + name + 'is invalid') });
+        }
+    }    
     if (!isNumValidator(id)) {
         return res.status(400).json({ error: formatMessageToClient('ID for task is invalid') });
     }
-    if (!isNumValidator(assigneeId)) {
-        return res.status(400).json({ error: formatMessageToClient('ID for assignee is invalid') });
-    }
+   /* if (assignee) {
+        if (!isNumValidator((assignee as Assignee).id)) {
+            return res.status(400).json({ error: formatMessageToClient('ID for assignee is invalid') });
+        }
+    }*/
 
     const insertRowIntoTaskTagQ = `
     INSERT INTO TaskTag (task_id, tag_id)
@@ -357,7 +369,7 @@ app.put("/api/tasks/:id", async (req, res) => {
 
     try {
 
-        const item = await queryPostgres(updateTaskQ, [name, description, startDate, endDate, assigneeId, taskStatusId,id]);
+        const item = await queryPostgres(updateTaskQ, [name, description, startDate, endDate, assignee.id, putTask.taskStatus.id, id]);
 
         //tags
         const dbTagRows: any[] = await queryPostgres(getAllRowsFromTaskTagByTaskIdQ, [id]);
@@ -388,7 +400,8 @@ app.put("/api/tasks/:id", async (req, res) => {
 
         //roadmaps
         const dbRoadmapRows: any[] = await queryPostgres(getAllRowsFromTaskRoadmapByTaskIdQ, [id]);
-        const roadmapArrayFromParams: number[] = Array.isArray(roadmaps) ? roadmaps : JSON.parse(roadmaps);
+        let roadmapArrayFromParams: number[] = Array.isArray(roadmaps) ? roadmaps : JSON.parse(roadmaps);
+        roadmapArrayFromParams = putTask.roadmaps.map(map => map.id);
         let newRoadmapRows: any[] = [];
         roadmapArrayFromParams.map(map => {
             newRoadmapRows.push({
@@ -414,16 +427,15 @@ app.put("/api/tasks/:id", async (req, res) => {
             await queryPostgres(insertRowIntoTaskRoadmapQ, [row.task_id, row.roadmap_id,]);
         }));
 
-        //send message
-        let clientMessage: string = 'Task successfully updated.\n';
 
         if (item.length > 0) {
-            res.status(201).json(item);
+            res.status(201).json(putTask);
         } else {
+            console.log('Error updating task');
             res.status(400).json(formatMessageToClient('Task ' + name + ' could not be updated'));
         }
     } catch (err) {
-        console.error('Error fetching task:', err);
+        console.error('Error updating task:', err);
         res.status(500).send(formatMessageToClient('Error fetching task'));
     };
 
