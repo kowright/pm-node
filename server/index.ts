@@ -849,7 +849,7 @@ app.put("/api/milestones/:id", async (req, res) => {
 });
 
 app.post("/api/milestones", async (req, res) => {
-    const { name, description, date, taskStatus_id, tags, roadmaps } = req.body;
+    const { name, description, date, taskStatus, tags, roadmaps } = req.body;
 
     if (!validator.isLength(name, { max: 255 })) {
         return res.status(400).json({ error: formatMessageToClient('Name is too long for milestone ' + name) });
@@ -860,7 +860,7 @@ app.post("/api/milestones", async (req, res) => {
     if (!dayjs(date, 'YYYY-MM-DD', true).isValid()) {
         return res.status(400).json({ error: formatMessageToClient('Date format is not correct for milestone ' + name) });
     }
-    if (taskStatus_id && !isNumValidator(taskStatus_id)) {
+    if (taskStatus && !isNumValidator(taskStatus)) {
         return res.status(400).json({ error: formatMessageToClient('ID for milestone ' + name + 'is invalid') });
     }
     if (!isArrayOfNumbersValidator(tags)) {
@@ -887,7 +887,7 @@ app.post("/api/milestones", async (req, res) => {
     `
 
     try {
-        const newItem = await queryPostgres(q, [name, description, date, taskStatus_id]);
+        const newItem = await queryPostgres(q, [name, description, date, taskStatus]);
         console.log("new item id", newItem)
         const tagArray: number[] = Array.isArray(tags) ? tags : JSON.parse(tags);
         let clientMessage: string = 'Milestone successfully made.\n';
@@ -1035,7 +1035,7 @@ app.post("/api/assignees", async (req, res) => {
     }
 
     const q: string = `
-        INSERT INTO Tag (name, description)
+        INSERT INTO Assignee (name, description)
         VALUES ($1, $2)
         RETURNING *;
     `;
@@ -1388,7 +1388,7 @@ app.put("/api/roadmap/:id", async (req, res) => {
 
 app.post("/api/roadmaps", async (req, res) => {
     const { name, description } = req.body;
-
+    console.log("roadmap post")
     if (!validator.isLength(name, { max: 255 })) {
         return res.status(400).json({ error: formatMessageToClient('Name is too long for tag ' + name) });
     }
