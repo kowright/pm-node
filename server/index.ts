@@ -439,35 +439,35 @@ app.put("/api/tasks/:id", async (req, res) => {
         res.status(500).send(formatMessageToClient('Error fetching task'));
     };
 
-
+    
 });
 
-app.post("/api/tasks", async (req, res) => { //THIS ONE 
-    const { name, description, startDate, endDate, assigneeId, taskStatusId, tags, roadmaps } = req.body;
-
+app.post("/api/tasks", async (req, res) => {
+    const { name, description, startDate, endDate, assignee, taskStatus, tags, roadmaps } = req.body;
     if (!validator.isLength(name, { max: 255 })) {
-        return res.status(400).json({ error: formatMessageToClient('Name is too long for milestone ' + name) });
+        return res.status(400).json({ error: formatMessageToClient('Name is too long for task ' + name) });
     }
     if (!validator.isLength(description, { max: 255 })) {
-        return res.status(400).json({ error: formatMessageToClient('Description is too long for milestone ' + name) });
+        return res.status(400).json({ error: formatMessageToClient('Description is too long for task ' + name) });
     }
     if (!dayjs(startDate, 'YYYY-MM-DD', true).isValid()) {
-        return res.status(400).json({ error: formatMessageToClient('Date format is not correct for milestone ' + name) });
+        return res.status(400).json({ error: formatMessageToClient('Date format is not correct for task ' + name) });
     }
     if (!dayjs(endDate, 'YYYY-MM-DD', true).isValid()) {
-        return res.status(400).json({ error: formatMessageToClient('Date format is not correct for milestone ' + name) });
+        return res.status(400).json({ error: formatMessageToClient('Date format is not correct for task  ' + name) });
     }
-    if (taskStatusId && !isNumValidator(taskStatusId)) {
-        return res.status(400).json({ error: formatMessageToClient('ID for milestone ' + name + 'is invalid') });
-    }
-    if (assigneeId && !isNumValidator(assigneeId)) {
-        return res.status(400).json({ error: formatMessageToClient('ID for milestone ' + name + 'is invalid') });
+    if (taskStatus && !isNumValidator(taskStatus)) {
+        console.log("Task status error")
+        return res.status(400).json({ error: formatMessageToClient('ID for task  ' + name + 'is invalid') });
+    } 
+    if (assignee && !isNumValidator(assignee)) {
+        return res.status(400).json({ error: formatMessageToClient('ID for task  ' + name + 'is invalid') });
     }
     if (!isArrayOfNumbersValidator(tags)) {
-        return res.status(400).json({ error: formatMessageToClient('Params for milestone ' + name + 'is invalid') });
+        return res.status(400).json({ error: formatMessageToClient('Params for task  ' + name + 'is invalid') });
     }
     if (!isArrayOfNumbersValidator(roadmaps)) {
-        return res.status(400).json({ error: formatMessageToClient('Params for milestone ' + name + 'is invalid') });
+        return res.status(400).json({ error: formatMessageToClient('Params for task  ' + name + 'is invalid') });
     }
 
     const q: string = `
@@ -487,7 +487,7 @@ app.post("/api/tasks", async (req, res) => { //THIS ONE
     `
 
     try {
-        const newItem = await queryPostgres(q, [name, description, startDate, endDate, assigneeId, taskStatusId]);
+        const newItem = await queryPostgres(q, [name, description, startDate, endDate, assignee, taskStatus]);
         console.log("new item id", newItem)
         const tagArray: number[] = Array.isArray(tags) ? tags : JSON.parse(tags);
         let clientMessage: string = 'Milestone successfully made.\n';
