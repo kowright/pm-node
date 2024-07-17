@@ -304,6 +304,7 @@ app.put("/api/tasks/:id", async (req, res) => {
     }*/
     if (tags) {
         const sentTags = tags as Tag[];
+        console.log('tags', sentTags)
         const tagIds = sentTags.map(tag => tag.id);
         if (!isArrayOfNumbersValidator(tagIds)) {
             return res.status(400).json({ error: formatMessageToClient('Params for task ' + name + 'is invalid') });
@@ -324,6 +325,7 @@ app.put("/api/tasks/:id", async (req, res) => {
             return res.status(400).json({ error: formatMessageToClient('ID for assignee is invalid') });
         }
     }*/
+    console.log("validation cleared")
 
     const insertRowIntoTaskTagQ = `
     INSERT INTO TaskTag (task_id, tag_id)
@@ -373,12 +375,14 @@ app.put("/api/tasks/:id", async (req, res) => {
 
         //tags
         const dbTagRows: any[] = await queryPostgres(getAllRowsFromTaskTagByTaskIdQ, [id]);
-        const tagArrayFromParams: number[] = Array.isArray(tags) ? tags : JSON.parse(tags);
+        console.log("1")
+        const tagArrayFromParams: Tag[] = Array.isArray(tags) ? tags : JSON.parse(tags);
         let newTagRows: any[] = [];
+        console.log("tag array from param", tagArrayFromParams)
         tagArrayFromParams.map(tag => {
             newTagRows.push({
                 task_id: id,
-                tag_id: tag
+                tag_id: tag.id
             });
         });
 
@@ -393,11 +397,12 @@ app.put("/api/tasks/:id", async (req, res) => {
         await Promise.all(rowsToDelete.map(async row => {
             await queryPostgres(deleteRowFromTaskTagQ, [row.task_id, row.tag_id]);
         }));
+        console.log("2")
 
         await Promise.all(rowsToInsert.map(async row => {
             await queryPostgres(insertRowIntoTaskTagQ, [row.task_id, row.tag_id]);
         }));
-
+        console.log("3")
         //roadmaps
         const dbRoadmapRows: any[] = await queryPostgres(getAllRowsFromTaskRoadmapByTaskIdQ, [id]);
         let roadmapArrayFromParams: number[] = Array.isArray(roadmaps) ? roadmaps : JSON.parse(roadmaps);
@@ -429,7 +434,8 @@ app.put("/api/tasks/:id", async (req, res) => {
 
 
         if (item.length > 0) {
-            res.status(201).json(putTask);
+            console.log("put task result", item)
+            res.status(201).json(putTask); //hmm
         } else {
             console.log('Error updating task');
             res.status(400).json(formatMessageToClient('Task ' + name + ' could not be updated'));
@@ -593,7 +599,7 @@ app.get("/api/milestones", async (req, res) => {
         };
 
         let milestoneList: Milestone[] = [];
-
+        console.log("m1")
         await Promise.all(list.map(async (ms) => {
             const roadmapArray: Roadmap[] = [];
 
@@ -603,6 +609,7 @@ app.get("/api/milestones", async (req, res) => {
                     roadmapArray.push(new Roadmap(roadmap.name, roadmap.description, roadmap.id, roadmap.type));
                 });
             };
+            console.log("m2")
 
             const tagArray: Tag[] = [];
             if (tags === 'true') {
@@ -611,7 +618,8 @@ app.get("/api/milestones", async (req, res) => {
                     tagArray.push(new Tag(tag.name, tag.description, tag.id, tag.type));
                 });
             };
-
+            console.log("m3")
+            console.log("ms id "+ ms.id)
             const status = await queryPostgres(taskStatusQ, [ms.id]);
             let taskStatus: TaskStatus;
             if (status.length > 0) {
@@ -620,11 +628,14 @@ app.get("/api/milestones", async (req, res) => {
             }
             else {
                 throw new Error(formatMessageToClient('Error with query'));
+                console.log("task status query for milestone gave back no results. Every milestone should have a task status")
                
             }
-  
+            console.log("m4")
+
             milestoneList.push(new Milestone(ms.name, ms.description, roadmapArray, tagArray, ms.date, taskStatus,
                 ms.id, ms.type_id));
+             console.log("m5")
         }));
 
 
@@ -712,6 +723,7 @@ app.get("/api/milestones/:id", async (req, res) => {
 app.put("/api/milestones/:id", async (req, res) => { 
     const id = parseInt(req.params.id);
     const { name, description, date, taskStatus_id, tags, roadmaps } = req.body;
+    const putMilestone: Milestone = req.body;
 
     if (!validator.isLength(name, { max: 255 })) {
         return res.status(400).json({ error: formatMessageToClient('Name is too long for milestone ' + name) });
@@ -725,12 +737,21 @@ app.put("/api/milestones/:id", async (req, res) => {
     if (taskStatus_id && !isNumValidator(taskStatus_id)) {
         return res.status(400).json({ error: formatMessageToClient('ID for milestone ' + name + 'is invalid') });
     }
-    if (!isArrayOfNumbersValidator(tags)) {
-        return res.status(400).json({ error: formatMessageToClient('Params for milestone ' + name + 'is invalid') });
-    }
-    if (!isArrayOfNumbersValidator(roadmaps)) {
-        return res.status(400).json({ error: formatMessageToClient('Params for milestone ' + name + 'is invalid') });
-    }
+    if (tags) {
+        const sentTags = tags as Tag[];
+        console.log('tags', sentTags)
+        const tagIds = sentTags.map(tag => tag.id);
+        if (!isArrayOfNumbersValidator(tagIds)) {
+            return res.status(400).json({ error: formatMessageToClient('Params for task ' + name + 'is invalid') });
+        }
+    }      
+    if (roadmaps) {
+        const sentRoadmaps = roadmaps as Roadmap[];
+        const roadmapIds = sentRoadmaps.map(map => map.id);
+        if (!isArrayOfNumbersValidator(roadmapIds)) {
+            return res.status(400).json({ error: formatMessageToClient('Params for task ' + name + 'is invalid') });
+        }
+    }   
     if (!isNumValidator(id)) {
         return res.status(400).json({ error: formatMessageToClient('ID for milestone is invalid') });
     }
@@ -777,16 +798,17 @@ app.put("/api/milestones/:id", async (req, res) => {
 
     try {
 
-        const item = await queryPostgres(updateMilestoneQ, [name, description, date, taskStatus_id, id]);
+        const item = await queryPostgres(updateMilestoneQ, [name, description, date, putMilestone.taskStatus.id, id]);
 
         //tags
         const dbTagRows: any[] = await queryPostgres(getAllRowsFromMilestoneTagByMilestoneIdQ, [id]);
-        const tagArrayFromParams: number[] = Array.isArray(tags) ? tags : JSON.parse(tags);
+        const tagArrayFromParams: Tag[] = Array.isArray(tags) ? tags : JSON.parse(tags);
+
         let newTagRows: any[] = [];
         tagArrayFromParams.map(tag => {
             newTagRows.push({
                 milestone_id: id,
-                tag_id: tag
+                tag_id: tag.id
             });
         });
 
@@ -808,7 +830,8 @@ app.put("/api/milestones/:id", async (req, res) => {
 
         //roadmaps
         const dbRoadmapRows: any[] = await queryPostgres(getAllRowsFromRoadmapMilestoneByMilestoneIdQ, [id]);
-        const roadmapArrayFromParams: number[] = Array.isArray(roadmaps) ? roadmaps : JSON.parse(roadmaps);
+        let roadmapArrayFromParams: number[] = Array.isArray(roadmaps) ? roadmaps : JSON.parse(roadmaps);
+        roadmapArrayFromParams = putMilestone.roadmaps.map(map => map.id);
         let newRoadmapRows: any[] = [];
         roadmapArrayFromParams.map(map => {
             newRoadmapRows.push({
@@ -834,11 +857,9 @@ app.put("/api/milestones/:id", async (req, res) => {
             await queryPostgres(insertRowIntoRoadmapMilestoneQ, [row.roadmap_id, row.milestone_id]);
         }));
 
-        //send message
-        let clientMessage: string = 'Milestone successfully updated.\n';
-
         if (item.length > 0) {
-            res.status(201).json(item);
+            res.status(201).json(putMilestone); //hmm
+            console.log("milestone put result", item)
         } else {
             res.status(400).json(formatMessageToClient('Milestone ' + name + ' could not be updated'));
         }
