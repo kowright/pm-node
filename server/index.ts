@@ -552,7 +552,8 @@ app.delete("/api/tasks/:id", async (req, res) => {
         const result = await queryPostgres(q);
 
         if (result.length === 0) {
-            res.status(200).json();
+            console.log("deleted")
+            res.status(200).json('deleted');
         } else {
             res.status(404).json(formatMessageToClient('Task not found- does not exist in records'));
         }
@@ -968,7 +969,7 @@ app.delete("/api/milestones/:id", async (req, res) => {
         const result = await queryPostgres(q);
 
         if (result.length === 0) {
-            res.status(200).json();
+            res.status(200).json('deleted');
         } else {
             res.status(404).json(formatMessageToClient('Milestone not found- does not exist in records'));
         }
@@ -1089,7 +1090,7 @@ app.delete("/api/assignees/:id", async (req, res) => {
         const result = await queryPostgres(q);
 
         if (result.length === 0) {
-            res.status(200).json();
+            res.status(200).json('deleted');
         } else {
             res.status(404).json(formatMessageToClient('Assignee not found- does not exist in records'));
         }
@@ -1215,7 +1216,7 @@ app.delete("/api/tags/:id", async (req, res) => {
         const result = await queryPostgres(q);
 
         if (result.length === 0) {
-            res.status(200).json();
+            res.status(200).json('deleted');
         } else {
             res.status(404).json(formatMessageToClient('Tag not found- does not exist in records'));
         }
@@ -1328,7 +1329,7 @@ app.delete("/api/taskstatus/:id", async (req, res) => {
         const result = await queryPostgres(q);
 
         if (result.length === 0) {
-            res.status(200).json();
+            res.status(200).json('deleted');
         } else {
             res.status(404).json(formatMessageToClient('Task Status not found- does not exist in records'));
         }
@@ -1451,7 +1452,7 @@ app.delete("/api/roadmaps/:id", async (req, res) => {
         const result = await queryPostgres(q);
 
         if (result.length === 0) {
-            res.status(200).json();
+            res.status(200).json('deleted');
         } else {
             res.status(404).json(formatMessageToClient('Roadmap not found- does not exist in records'));
         }
