@@ -1209,9 +1209,12 @@ app.post("/api/assignees", async (req, res) => {
     `;
 
     try {
-        const newItem = await queryPostgres(q, [name, description]);
+        const item = await queryPostgres(q, [name, description]);
 
-        if (newItem.length > 0) {
+         const newItem = new Assignee(item[0].name, item[0].description, item[0].id, item[0].type_id);
+
+
+        if (item.length > 0) { //should move all of these up under item
             res.status(201).json(newItem);
         } else {
             res.status(400).json(formatMessageToClient('Assignee ' + name + ' could not be created'));
@@ -1335,11 +1338,14 @@ app.post("/api/tags", async (req, res) => {
     `;
 
     try { 
-        const newItem = await queryPostgres(q, [name, description]);
-        
-        if (newItem.length > 0) {
+        const item = await queryPostgres(q, [name, description]);
+        const newItem = new Tag(item[0].name, item[0].description, item[0].id, item[0].type_id);
+        console.log("item[0]", newItem)
+        console.log("item length" + item.length)
+        if (item.length > 0) {
             res.status(201).json(newItem);
         } else {
+            console.log("item length wasn't over zero");
             res.status(400).json(formatMessageToClient('Tag ' + name + ' could not be created'));
         }
     } catch (err) {
@@ -1430,7 +1436,6 @@ app.put("/api/taskstatus/:id", async (req, res) => {
 
 });
 
-
 app.post("/api/taskstatus", async (req, res) => {
     const { name, description } = req.body;
 
@@ -1448,9 +1453,10 @@ app.post("/api/taskstatus", async (req, res) => {
     `;
 
     try {
-        const newItem = await queryPostgres(q, [name, description]);
+        const item = await queryPostgres(q, [name, description]);
+        const newItem = new TaskStatus(item[0].name, item[0].description, item[0].id, item[0].type_id)
 
-        if (newItem.length > 0) {
+        if (item.length > 0) {
             res.status(201).json(newItem);
         } else {
             res.status(400).json(formatMessageToClient('Task Status ' + name + ' could not be created'));
@@ -1571,9 +1577,10 @@ app.post("/api/roadmaps", async (req, res) => {
     `;
 
     try {
-        const newItem = await queryPostgres(q, [name, description]);
+        const item = await queryPostgres(q, [name, description]);
+        const newItem = new Roadmap(item[0].name, item[0].description, item[0].id, item[0].type_id);
 
-        if (newItem.length > 0) {
+        if (item.length > 0) {
             res.status(201).json(newItem);
         } else {
             res.status(400).json(formatMessageToClient('Roadmap ' + name + ' could not be created'));
