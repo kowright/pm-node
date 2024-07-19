@@ -48,17 +48,22 @@ function formatMessageToServer(loggerName: string, text: string, err?: any): voi
 
 function formatQuerySingleUnitErrorMessage(singleUnitName: string, loggerName: string, id: number, err: any, res: Response) {
     formatMessageToServer(loggerName, "couldn't query for " + singleUnitName + " id " + id, err);
-    res.status(400).send(formatMessageToClient('Error with query; no results returned'));
+    res.status(400).send(formatMessageToClient('Error with query; no results returned', err));
 }
 
-function formatQueryAllUnitsErrorMessage(pluralUnitName: string, loggerName: string, id: number, err: any, res: Response) {
+function formatQueryAllUnitsErrorMessage(pluralUnitName: string, loggerName: string, err: any, res: Response) {
     formatMessageToServer(loggerName, "couldn't query for all " + pluralUnitName, err);
-    res.status(400).send(formatMessageToClient('Error with query; no results returned'));
+    res.status(400).send(formatMessageToClient('Error with query; no results returned', err));
 }
 
 function formatQueryDeleteUnitErrorMessage(singleUnitName: string, loggerName: string, id: number, err: any, res: Response) {
     formatMessageToServer(loggerName, "couldn't find ID " + id + " for " + singleUnitName, err);
-    res.status(404).json(formatMessageToClient(singleUnitName + ' not found- does not exist in records'));
+    res.status(404).json(formatMessageToClient(singleUnitName + ' not found- does not exist in records', err));
+}
+
+function formatQueryPostUnitErrorMessage(singleUnitName: string, loggerName: string, err: any, res: Response) {
+    formatMessageToServer(loggerName, "couldn't insert into table for " + singleUnitName, err);
+    res.status(404).json(formatMessageToClient(singleUnitName + ' could not be created found- does not exist in records', err));
 }
 // #endregion
 
@@ -160,28 +165,28 @@ function isArrayOfNumbersValidator(tags: any): boolean {
     return true; // All elements are numbers
 }
 
-function checkStringInputValidator(stringType: string, name: string, loggerName: string, res: Response) {
+function validateStringInput(stringType: string, name: string, loggerName: string, res: Response) { //TODO name should be any
     if (!validator.isLength(name, { max: 255 })) {
         formatMessageToServer(loggerName, stringType + " is too long for " + name);
         return res.status(400).json({ error: formatMessageToClient('Name is too long for task ' + name) });
     }
 }
 
-function checkDateInputValidator(dateTitle: string, dateValue: string, loggerName: string, res: Response) {
+function validateDateInput(dateTitle: string, dateValue: string, loggerName: string, res: Response) {
     if (!dayjs(dateValue, 'YYYY-MM-DD', true).isValid()) {
         formatMessageToServer(loggerName, dateTitle + ' format is not correct: ' + dateValue);
         return res.status(400).json({ error: formatMessageToClient(dateTitle + ' format is not correct: ' + dateValue) });
     }
 }
 
-function checkNumberInputValidator(num: any, clientMessage: string, loggerName: string, res: Response) {
+function validateNumberInput(num: any, clientMessage: string, loggerName: string, res: Response) {
     if(!isNumValidator(num)) {
         formatMessageToServer(loggerName, num + ' is not a number');
         return res.status(400).json({ error: formatMessageToClient(clientMessage) });
     }
 }
 
-function checkArrayOfNumbersInputValidator(arrayName: string, array: any[], loggerName: string,res: Response) {
+function validateArrayOfNumbersInput(arrayName: string, array: any[], loggerName: string,res: Response) {
     if (!isArrayOfNumbersValidator(array)) {
         formatMessageToServer(loggerName, arrayName + ' is not an array of numbers')
         return res.status(400).json({ error: formatMessageToClient('Params for milestone ' + arrayName + 'is invalid') });
@@ -820,8 +825,7 @@ app.get("/api/milestones", async (req, res) => {
     try {
         list = await queryPostgres(q);
     } catch (err) {
-        formatMessageToServer(loggerName, "couldn't query for all milestones", err);
-        res.status(400).send(formatMessageToClient('Error with query; no results returned'));
+        formatQueryAllUnitsErrorMessage('milestones', loggerName, err, res);
     } 
 
     if (list.length === 0) {
@@ -978,11 +982,11 @@ app.put("/api/milestones/:id", async (req, res) => {
     const putMilestone: Milestone = req.body;
 
     // #region Validation
-    checkNumberInputValidator(id, 'Could not proccess milestone due to its ID', loggerName, res);
-    checkStringInputValidator("Name", name, loggerName, res);
-    checkStringInputValidator("Description", name, loggerName, res);
-    checkDateInputValidator('Date', date, loggerName, res);
-    taskStatus_id && checkNumberInputValidator(taskStatus_id, 'Task Status is not valid for ' + name, loggerName, res);
+    validateNumberInput(id, 'Could not proccess milestone due to its ID', loggerName, res);
+    validateStringInput("Name", name, loggerName, res);
+    validateStringInput("Description", name, loggerName, res);
+    validateDateInput('Date', date, loggerName, res);
+    taskStatus_id && validateNumberInput(taskStatus_id, 'Task Status is not valid for ' + name, loggerName, res);
     if (tags) {
         const sentTags = tags as Tag[];
         const tagIds = sentTags.map(tag => tag.id);
@@ -1067,7 +1071,7 @@ app.put("/api/milestones/:id", async (req, res) => {
             });
         });
     } catch (err) {
-        formatQueryAllUnitsErrorMessage('tags for milestone', loggerName, id, err, res);
+        formatQueryAllUnitsErrorMessage('tags for milestone', loggerName, err, res);
     }
 
     const rowsToDelete = dbTagRows.filter(dbRow =>
@@ -1111,7 +1115,7 @@ app.put("/api/milestones/:id", async (req, res) => {
             });
         });
     } catch (err) {
-        formatQueryAllUnitsErrorMessage('roadmaps for milestone', loggerName, id, err, res);
+        formatQueryAllUnitsErrorMessage('roadmaps for milestone', loggerName, err, res);
     }
 
       
@@ -1153,12 +1157,12 @@ app.post("/api/milestones", async (req, res) => {
     const loggerName = 'MILESTONES POST';
 
     // #region Validation
-    checkStringInputValidator('Name', name, loggerName, res);
-    checkStringInputValidator('Description', description, loggerName, res)
-    checkDateInputValidator('Date', date, loggerName, res);
-    checkNumberInputValidator(taskStatus, 'Task Status is not valid', loggerName, res);
-    checkArrayOfNumbersInputValidator('tags', tags, loggerName, res);
-    checkArrayOfNumbersInputValidator('roadmaps', roadmaps, loggerName, res);
+    validateStringInput('Name', name, loggerName, res);
+    validateStringInput('Description', description, loggerName, res)
+    validateDateInput('Date', date, loggerName, res);
+    validateNumberInput(taskStatus, 'Task Status is not valid', loggerName, res);
+    validateArrayOfNumbersInput('tags', tags, loggerName, res);
+    validateArrayOfNumbersInput('roadmaps', roadmaps, loggerName, res);
     // #endregion
 
     // #region Queries 
@@ -1181,7 +1185,12 @@ app.post("/api/milestones", async (req, res) => {
 
     // #endregion
 
-    const newItem = await queryPostgres(q, [name, description, date, taskStatus]);
+    let newItem: any;
+    try {
+        newItem = await queryPostgres(q, [name, description, date, taskStatus]);
+    } catch (err) {
+        formatQueryPostUnitErrorMessage('milestone', loggerName, err, res);
+    }
     const tagArray: number[] = Array.isArray(tags) ? tags : JSON.parse(tags);
 
     //let clientMessage: string = 'Milestone successfully made.\n';
@@ -1240,7 +1249,7 @@ app.delete("/api/milestones/:id", async (req, res) => {
 
     const loggerName = 'MILESTONES POST';
  
-    checkNumberInputValidator(id, 'Assignee ID is not valid', loggerName, res);
+    validateNumberInput(id, 'Assignee ID is not valid', loggerName, res);
 
     const q = formatDeleteIdfromDatabaseQuery('Milestone', id);
 
@@ -1259,35 +1268,34 @@ app.delete("/api/milestones/:id", async (req, res) => {
 
 //#endregion
 
-//#region Assignees GOOD
+//#region Assignees
 app.get("/api/assignees", async (req, res) => {
+    const loggerName = 'ASSIGNEES GET';
+
     const q: string = formatSelectAllFromTable('Assignee');
 
-    try {
-        const list: any[] = await queryPostgres(q);
-        if (!list || list.length === 0) {
-            res.status(400).send(formatMessageToClient('Error with query; no results returned'));
-        };
-        const newList: Assignee[] = [];
-        list.map(a => {
-            newList.push(new Assignee(
-                a.name, a.description, a.id, a.type_id
-            ))
-        });
+    let list: any[] = [];
 
-        res.status(200).send(newList); 
+    try {
+        list = await queryPostgres(q);
     } catch (err) {
-        console.error('Error fetching assignees:', err);
-        res.status(500).send(formatMessageToClient('Error fetching assignees'));
-    };
+        formatQueryAllUnitsErrorMessage('assignes', loggerName, err, res);
+    }
+
+    const newList: Assignee[] = [];
+    list.map(a => {
+        newList.push(new Assignee( a.name, a.description, a.id, a.type_id))
+    });
+
+    res.status(200).send(newList); 
 });
 
 app.get("/api/assignees/:id", async (req, res) => {
     const id = parseInt(req.params.id);
 
-    if (!isNumValidator(id)) {
-        return res.status(400).json(formatMessageToClient('ID for assignee is invalid'));
-    }
+    const loggerName = 'ASSIGNEES ID GET';
+
+    validateNumberInput(id, 'ID for assignee is invalid', loggerName, res);
 
     const q: string = formatSelectIdfromDatabaseQuery('Assignee', id);
 
@@ -1298,19 +1306,23 @@ app.get("/api/assignees/:id", async (req, res) => {
 
         res.status(200).send(newItem);
     } catch (err) {
-        console.error('Error fetching assignee:', err);
-        res.status(500).send(formatMessageToClient('Error fetching assignee')); 
+        formatQuerySingleUnitErrorMessage('assignee', loggerName, id, err, res);
     };
 }); 
 
 app.put("/api/assignees/:id", async (req, res) => {
     const id = parseInt(req.params.id);
 
-    if (!isNumValidator(id)) {
-        return res.status(400).json(formatMessageToClient('ID for assignee is invalid'));
-    }
+    const { name, description } = req.body; //TODO check if can do this in frontend
 
-    const q: string = formatSelectIdfromDatabaseQuery('Assignee', id);
+    const loggerName = 'ASSIGNEES PUT';
+
+    validateNumberInput(id, 'ID for assignee is invalid', loggerName, res);
+    validateStringInput('name', name, loggerName, res);
+    validateStringInput('description', description, loggerName, res);
+
+    const q: string = formatSelectIdfromDatabaseQuery('Assignee', id); //change to an update query like below
+    //const q: string = `UPDATE TaskStatus SET name = $1, description = $2 WHERE id = ${id} RETURNING *`;
 
     try {
         const item = await queryPostgres(q);
@@ -1319,20 +1331,17 @@ app.put("/api/assignees/:id", async (req, res) => {
 
         res.status(200).send(updatedItem);
     } catch (err) {
-        console.error('Error fetching assignee:', err);
-        res.status(500).send(formatMessageToClient('Error fetching assignee'));
+        formatQuerySingleUnitErrorMessage('assignee', loggerName, id, err, res);
     };
 });
 
 app.post("/api/assignees", async (req, res) => {
     const { name, description } = req.body;
 
-    if (!validator.isLength(name, { max: 255 })) {
-        return res.status(400).json(formatMessageToClient('Name is too long for tag ' + name));
-    }
-    if (!validator.isLength(description, { max: 255 })) {
-        return res.status(400).json(formatMessageToClient('Description is too long for tag ' + name));
-    }
+    const loggerName = 'ASSIGNEES POST';
+
+    validateStringInput('name', name, loggerName, res);
+    validateStringInput('description', description, loggerName, res);
 
     const q: string = `
         INSERT INTO Assignee (name, description)
@@ -1343,80 +1352,67 @@ app.post("/api/assignees", async (req, res) => {
     try {
         const item = await queryPostgres(q, [name, description]);
 
-         const newItem = new Assignee(item[0].name, item[0].description, item[0].id, item[0].type_id);
+        const newItem = new Assignee(item[0].name, item[0].description, item[0].id, item[0].type_id);
 
+        res.status(201).json(newItem);
 
-        if (item.length > 0) { //should move all of these up under item
-            res.status(201).json(newItem);
-        } else {
-            res.status(400).json(formatMessageToClient('Assignee ' + name + ' could not be created'));
-        }
     } catch (err) {
-        console.error('Error creating assignee: ' + name, err);
-        res.status(500).json(formatMessageToClient('Internal Server Error'));
+        formatQueryPostUnitErrorMessage('assignee', loggerName, err, res);
     }
 });
-
 
 app.delete("/api/assignees/:id", async (req, res) => {
     const id = parseInt(req.params.id);
 
-    if (!isNumValidator(id)) {
-        return res.status(400).json(formatMessageToClient('ID for assignee is invalid'));
-    }
+    const loggerName = 'ASSIGNEES DELETE';
+
+    validateNumberInput(id, 'could not find assignee', loggerName, res);
 
     const q = formatDeleteIdfromDatabaseQuery('Assignee', id);
 
     try {
-        const result = await queryPostgres(q);
+        await queryPostgres(q);
 
-        if (result.length === 0) {
-            res.status(200).json('deleted');
-        } else {
-            res.status(404).json(formatMessageToClient('Assignee not found- does not exist in records'));
-        }
+        res.status(200).json('deleted');
     } catch (err) {
-        console.error('Error deleting assignee:', err);
-        res.status(500).send(formatMessageToClient('Internal Server Error'));
+        formatQueryDeleteUnitErrorMessage('assignee', loggerName, id, err, res);
     };
 }); 
 
 //#endregion
 
-//#region Tags GOOD
+//#region Tags
 app.get("/api/tags", async (req, res) => { 
+    const loggerName = 'TAGS GET';
+
     const q: string = formatSelectAllFromTable('Tag');
 
+    let tagList: any[] = [];
     try {
-        const tagList: any[] = await queryPostgres(q);
-        if (!tagList) {
-            res.status(400).send(formatMessageToClient('Error with query; no results returned'));
-        };
-
-        let newList: Tag[] = [];
-        tagList.map(tag => {
-            newList.push(new Tag(
-                tag.name, tag.description, tag.id, tag.type_id
-            ))
-        });
-
-        res.status(200).send(newList);
+        tagList = await queryPostgres(q);
     } catch (err) {
-        console.error('Error fetching tags:', err);
-        res.status(500).send(formatMessageToClient('Error fetching tags'));
+        formatQueryAllUnitsErrorMessage('tag', loggerName, err, res);
     };
+
+    let newList: Tag[] = [];
+    tagList.map(tag => {
+        newList.push(new Tag(
+            tag.name, tag.description, tag.id, tag.type_id
+        ))
+    });
+
+    res.status(200).send(newList);
 });
 
 app.put("/api/tags/:id", async (req, res) => { 
     const id = parseInt(req.params.id);
+
     const { name, description } = req.body;
 
-    if (!validator.isLength(name, { max: 255 })) {
-        return res.status(400).json(formatMessageToClient('Name is too long for tag ' + name));
-    }
-    if (!validator.isLength(description, { max: 255 })) {
-        return res.status(400).json(formatMessageToClient('Description is too long for tag ' + name));
-    }
+    const loggerName = 'TAGS PUT';
+
+    validateStringInput('name', name, loggerName, res);
+    validateStringInput('description', description, loggerName, res);
 
     const q: string = `UPDATE Tag SET name = $1, description = $2 WHERE id = ${id} RETURNING *`;
 
@@ -1427,8 +1423,7 @@ app.put("/api/tags/:id", async (req, res) => {
 
         res.status(200).send(updatedItem);
     } catch (err) {
-        console.error('Error updating unit type item: ' + id, err);
-        res.status(500).send(formatMessageToClient('Error updating unit type item ' + id));
+        formatQuerySingleUnitErrorMessage('tag', 'could not update tag', id, err, res);
     };
 
 });
@@ -1436,9 +1431,9 @@ app.put("/api/tags/:id", async (req, res) => {
 app.get("/api/tags/:id", async (req, res) => {
     const id = parseInt(req.params.id);
 
-    if (!isNumValidator(id)) {
-        return res.status(400).json({ error: formatMessageToClient('ID for tag is invalid') });
-    }
+    const loggerName = 'TAGS PUT';
+
+    validateNumberInput(id, 'ID for tag is invalid', loggerName, res);
 
     const q: string = formatSelectIdfromDatabaseQuery('Tag', id);
 
@@ -1446,22 +1441,20 @@ app.get("/api/tags/:id", async (req, res) => {
         const item = await queryPostgres(q);
 
         const newItem = new Tag(item[0].name, item[0].description, item[0].id, item[0].type_id);
+
         res.status(200).send(newItem);
     } catch (err) {
-        console.error('Error fetching tag:', err);
-        res.status(500).send(formatMessageToClient('Error fetching tag'));
+        formatQuerySingleUnitErrorMessage('tag', 'could not find tag', id, err, res);
     };
 }); 
 
 app.post("/api/tags", async (req, res) => { 
     const { name, description } = req.body;
 
-    if (!validator.isLength(name, { max: 255 })) {
-        return res.status(400).json(formatMessageToClient('Name is too long for tag ' + name));
-    }
-    if (!validator.isLength(description, { max: 255 })) {
-        return res.status(400).json(formatMessageToClient('Description is too long for tag ' + name));
-    }
+    const loggerName = 'TAGS PUT';
+
+    validateStringInput('name', name, loggerName, res);
+    validateStringInput('description', description, loggerName, res);
 
     const q: string = `
         INSERT INTO Tag (name, description)
@@ -1471,99 +1464,92 @@ app.post("/api/tags", async (req, res) => {
 
     try { 
         const item = await queryPostgres(q, [name, description]);
+
         const newItem = new Tag(item[0].name, item[0].description, item[0].id, item[0].type_id);
-        console.log("item[0]", newItem)
-        console.log("item length" + item.length)
-        if (item.length > 0) {
-            res.status(201).json(newItem);
-        } else {
-            console.log("item length wasn't over zero");
-            res.status(400).json(formatMessageToClient('Tag ' + name + ' could not be created'));
-        }
+
+        res.status(201).json(newItem);
+  
     } catch (err) {
-        console.error('Error creating tag: ' + name, err);
-        res.status(500).json(formatMessageToClient('Internal Server Error'));
+        formatQueryPostUnitErrorMessage('tag', loggerName, err, res);
     }
 });
-
 
 app.delete("/api/tags/:id", async (req, res) => {
     const id = parseInt(req.params.id);
 
-    if (!isNumValidator(id)) {
-        return res.status(400).json({ error: formatMessageToClient('ID for tag is invalid') });
-    }
+    const loggerName = 'TAGS PUT';
+
+    validateNumberInput(id, 'ID for tag is invalid', loggerName, res);
 
     const q = formatDeleteIdfromDatabaseQuery('Tag', id);
 
     try {
-        const result = await queryPostgres(q);
+        await queryPostgres(q);
 
-        if (result.length === 0) {
-            res.status(200).json('deleted');
-        } else {
-            res.status(404).json(formatMessageToClient('Tag not found- does not exist in records'));
-        }
+        res.status(200).json('deleted');
+        
     } catch (err) {
-        console.error('Error deleting tag:', err);
-        res.status(500).send(formatMessageToClient('Internal Server Error'));
+        formatQueryDeleteUnitErrorMessage('tag', loggerName, id, err, res);
     };
 }); 
 //#endregion
 
-//#region Task Status GOOD
+//#region Task Status
 app.get("/api/taskstatus", async (req, res) => {
     const q: string = formatSelectAllFromTable('TaskStatus');
 
+    const loggerName = 'TASK STATUS GET';
+
+    //TODO switch to creating task statuses with new TaskStatus
     try {
         const list = await queryPostgres(q);
-        if (!list) {
-            res.status(400).send(formatMessageToClient('Error with query; no results returned'));
-        };
+
         res.status(200).send(list);
     } catch (err) {
-        console.error('Error fetching task status:', err);
-        res.status(500).send(formatMessageToClient('Error fetching task status'));
+        formatQueryAllUnitsErrorMessage('task status', loggerName, err, res);
     };
 }); 
 
 app.get("/api/taskstatus/:id", async (req, res) => {
     const id = parseInt(req.params.id);
 
-    if (!isNumValidator(id)) {
-        return res.status(400).json({ error: formatMessageToClient('ID for task status is invalid') });
-    }
+    const loggerName = 'TASK STATUS ID GET';
+
+    validateNumberInput(id, 'ID for task status is invalid', loggerName, res);
 
     const q: string = formatSelectIdfromDatabaseQuery('TaskStatus', id);
 
     try {
-        const item = await queryPostgres(q);
+        const item = await queryPostgres(q); //TODO change to create a task status 
+
         res.status(200).send(item[0]);
     } catch (err) {
-        console.error('Error fetching task status:', err);
-        res.status(500).send(formatMessageToClient('Error fetching task status'));
+        formatQuerySingleUnitErrorMessage('task status', loggerName, id, err, res);
     };
 }); 
 
 app.put("/api/taskstatus/:id", async (req, res) => {
     const id = parseInt(req.params.id);
+
     const { name, description } = req.body;
 
-    if (!validator.isLength(name, { max: 255 })) {
-        return res.status(400).json({ error: formatMessageToClient('Name is too long for tag ' + name) });
-    }
-    if (!validator.isLength(description, { max: 255 })) {
-        return res.status(400).json({ error: formatMessageToClient('Description is too long for tag ' + name) });
-    }
+    const loggerName = 'TASK STATUS PUT';
+
+    // #region Validation
+    validateNumberInput(id, 'ID for assignee is invalid', loggerName, res);
+    validateStringInput('name', name, loggerName, res);
+    validateStringInput('description', description, loggerName, res);
+    // #endregion
 
     const q: string = `UPDATE TaskStatus SET name = $1, description = $2 WHERE id = ${id} RETURNING *`;
 
     try {
-        const item = await queryPostgres(q, [name, description]);
+        const item = await queryPostgres(q, [name, description]); //TODO create a task status with new TaskStatus
+        //const newItem = new TaskStatus(item[0].name, item[0].description, item[0].id, item[0].type_id)
+
         res.status(200).send(item[0]);
     } catch (err) {
-        console.error('Error updating task status: ' + id, err);
-        res.status(500).send(formatMessageToClient('Error updating task status ' + id));
+        formatQuerySingleUnitErrorMessage('task status', loggerName, id, err, res);
     };
 
 });
@@ -1571,12 +1557,10 @@ app.put("/api/taskstatus/:id", async (req, res) => {
 app.post("/api/taskstatus", async (req, res) => {
     const { name, description } = req.body;
 
-    if (!validator.isLength(name, { max: 255 })) {
-        return res.status(400).json({ error: formatMessageToClient('Name is too long for tag ' + name) });
-    }
-    if (!validator.isLength(description, { max: 255 })) {
-        return res.status(400).json({ error: formatMessageToClient('Description is too long for tag ' + name) });
-    }
+    const loggerName = 'TASK STATUS POST';
+
+    validateStringInput('name', name, loggerName, res);
+    validateStringInput('description', description, loggerName, res);
 
     const q: string = `
         INSERT INTO TaskStatus (name, description)
@@ -1586,98 +1570,87 @@ app.post("/api/taskstatus", async (req, res) => {
 
     try {
         const item = await queryPostgres(q, [name, description]);
+
         const newItem = new TaskStatus(item[0].name, item[0].description, item[0].id, item[0].type_id)
 
-        if (item.length > 0) {
-            res.status(201).json(newItem);
-        } else {
-            res.status(400).json(formatMessageToClient('Task Status ' + name + ' could not be created'));
-        }
+        res.status(201).json(newItem);
+      
     } catch (err) {
-        console.error('Error creating task status: ' + name, err);
-        res.status(500).json(formatMessageToClient('Internal Server Error'));
+        formatQueryPostUnitErrorMessage('assignee', loggerName, err, res);
     }
 });
-
 
 app.delete("/api/taskstatus/:id", async (req, res) => {
     const id = parseInt(req.params.id);
 
-    if (!isNumValidator(id)) {
-        return res.status(400).json({ error: formatMessageToClient('ID for task status is invalid') });
-    }
+    const loggerName = 'TASK STATUS DELETE';
+
+    validateNumberInput(id, 'could not find task status', loggerName, res);
 
     const q = formatDeleteIdfromDatabaseQuery('TaskStatus', id);
 
     try {
-        const result = await queryPostgres(q);
+        await queryPostgres(q);
 
-        if (result.length === 0) {
-            res.status(200).json('deleted');
-        } else {
-            res.status(404).json(formatMessageToClient('Task Status not found- does not exist in records'));
-        }
+        res.status(200).json('deleted');
+
     } catch (err) {
-        console.error('Error deleting task status:', err);
-        res.status(500).send(formatMessageToClient('Internal Server Error'));
+        formatQueryDeleteUnitErrorMessage('assignee', loggerName, id, err, res);
     };
 }); 
 
 //#endregion
 
-// #region Roadmaps ACTUALLY GOOD
+// #region Roadmaps
 app.get("/api/roadmaps", async (req, res) => {
+    const loggerName = 'ROADMAPS GET';
 
     const q: string = formatSelectAllFromTable('Roadmap');
 
+    let list: any[] = [];
     try {
-        const list: any[] = await queryPostgres(q);
-        if (!list) {
-            res.status(400).send(formatMessageToClient('Error with query; no results returned'));
-        };
-
-        let roadmapList: Roadmap[] = [];
-
-        list.map(map => { 
-            roadmapList.push(
-                new Roadmap(map.name, map.description, map.id, map.type_id));
-        });
-
-        res.status(200).send(roadmapList); 
+        list = await queryPostgres(q);
     } catch (err) {
-        console.error('Error fetching roadmaps:', err);
-        res.status(500).send(formatMessageToClient('Error fetching roadmaps'));
+        formatQueryAllUnitsErrorMessage('roadmaps', loggerName, err, res);
     };
+
+    let roadmapList: Roadmap[] = [];
+
+    list.map(map => { 
+        roadmapList.push(
+            new Roadmap(map.name, map.description, map.id, map.type_id));
+    });
+
+    res.status(200).send(roadmapList); 
 });
 
 app.get("/api/roadmaps/:id", async (req, res) => {
     const id = parseInt(req.params.id);
 
-    if (!isNumValidator(id)) {
-        return res.status(400).json({ error: formatMessageToClient('ID for roadmap is invalid') });
-    }
+    const loggerName = 'TAGS PUT';
+
+    validateNumberInput(id, 'ID for roadmap is invalid', loggerName, res);
 
     const q: string = formatSelectIdfromDatabaseQuery('Roadmap', id);
 
     try {
         const item = await queryPostgres(q);
+
         res.status(200).send(item[0]);
     } catch (err) {
-        console.error('Error fetching roadmap:', err);
-        res.status(500).send(formatMessageToClient('Error fetching roadmap'));
+        formatQuerySingleUnitErrorMessage('tag', 'could not find tag', id, err, res);
     };
 });
 
 app.put("/api/roadmap/:id", async (req, res) => {
     const id = parseInt(req.params.id);
+
     const { name, description } = req.body;
 
-    if (!validator.isLength(name, { max: 255 })) {
-        return res.status(400).json({ error: formatMessageToClient('Name is too long for tag ' + name) });
-    }
-    if (!validator.isLength(description, { max: 255 })) {
-        return res.status(400).json({ error: formatMessageToClient('Description is too long for tag ' + name) });
-    }
+    const loggerName = 'ROADMAPS PUT';
+
+    validateStringInput('name', name, loggerName, res);
+    validateStringInput('description', description, loggerName, res);
 
     const q: string = `UPDATE Roadmap SET name = $1, description = $2 WHERE id = ${id} RETURNING *`;
 
@@ -1685,22 +1658,18 @@ app.put("/api/roadmap/:id", async (req, res) => {
         const item = await queryPostgres(q, [name, description]);
         res.status(200).send(item[0]);
     } catch (err) {
-        console.error('Error updating roadmap: ' + id, err);
-        res.status(500).send(formatMessageToClient('Error updating roadmap ' + id));
+        formatQuerySingleUnitErrorMessage('tag', 'could not update tag', id, err, res);
     };
 
 });
 
-
 app.post("/api/roadmaps", async (req, res) => {
     const { name, description } = req.body;
-    console.log("roadmap post")
-    if (!validator.isLength(name, { max: 255 })) {
-        return res.status(400).json({ error: formatMessageToClient('Name is too long for tag ' + name) });
-    }
-    if (!validator.isLength(description, { max: 255 })) {
-        return res.status(400).json({ error: formatMessageToClient('Description is too long for tag ' + name) });
-    }
+
+    const loggerName = 'ROADMAPS PUT';
+
+    validateStringInput('name', name, loggerName, res);
+    validateStringInput('description', description, loggerName, res);
 
     const q: string = `
         INSERT INTO Roadmap (name, description)
@@ -1710,40 +1679,32 @@ app.post("/api/roadmaps", async (req, res) => {
 
     try {
         const item = await queryPostgres(q, [name, description]);
+
         const newItem = new Roadmap(item[0].name, item[0].description, item[0].id, item[0].type_id);
 
-        if (item.length > 0) {
-            res.status(201).json(newItem);
-        } else {
-            res.status(400).json(formatMessageToClient('Roadmap ' + name + ' could not be created'));
-        }
+        res.status(201).json(newItem);
+  
     } catch (err) {
-        console.error('Error creating roadmap: ' + name, err);
-        res.status(500).json(formatMessageToClient('Internal Server Error'));
+        formatQueryPostUnitErrorMessage('tag', loggerName, err, res);
     }
 });
-
 
 app.delete("/api/roadmaps/:id", async (req, res) => {
     const id = parseInt(req.params.id);
 
-    if (!isNumValidator(id)) {
-        return res.status(400).json({ error: formatMessageToClient('ID for roadmap is invalid') });
-    }
+    const loggerName = 'ROADMAPS PUT';
+
+    validateNumberInput(id, 'ID for tag is invalid', loggerName, res);
 
     const q = formatDeleteIdfromDatabaseQuery('Roadmap', id);
 
     try {
-        const result = await queryPostgres(q);
+        await queryPostgres(q);
 
-        if (result.length === 0) {
-            res.status(200).json('deleted');
-        } else {
-            res.status(404).json(formatMessageToClient('Roadmap not found- does not exist in records'));
-        }
+        res.status(200).json('deleted');
+
     } catch (err) {
-        console.error('Error deleting roadmap:', err);
-        res.status(500).send(formatMessageToClient('Internal Server Error'));
+        formatQueryDeleteUnitErrorMessage('roadmap', loggerName, id, err, res);
     };
 }); 
 
@@ -1751,57 +1712,55 @@ app.delete("/api/roadmaps/:id", async (req, res) => {
 
 // #region Unit Types
 app.get("/api/unittypes", async (req, res) => {
+    const loggerName = 'UNIT TYPES GET';
+
     const q: string = formatSelectAllFromTable('UnitType'); 
 
     try {
         const unitTypesList = await queryPostgres(q); 
-        if (!unitTypesList) {
-            res.status(400).send(formatMessageToClient('Error with query; no results returned'));
-        };
-        res.status(200).send(unitTypesList); //remove message and fix frontend
+  
+        res.status(200).send(unitTypesList); 
     } catch (err) {
-        console.error('Error fetching unit types:', err);
-        res.status(500).send(formatMessageToClient('Error fetching unit types'));
+        formatQueryAllUnitsErrorMessage('unit types', loggerName, err, res);
     };
 });
 
 app.get("/api/unittypes/:id", async (req, res) => { 
-    const typeId = parseInt(req.params.id);
+    const id = parseInt(req.params.id);
 
-    if (!isNumValidator(typeId)) {
-        return res.status(400).json(formatMessageToClient('ID for unittype is invalid'));
-    }
+    const loggerName = 'UNIT TYPES GET';
 
-    const q: string = formatSelectIdfromDatabaseQuery('UnitType', typeId); 
+    validateNumberInput(id, 'ID for tag is invalid', loggerName, res);
+
+    const q: string = formatSelectIdfromDatabaseQuery('UnitType', id); 
 
     try { 
         const item = await queryPostgres(q);
-        console.log("get id ", item)
+
         res.status(200).send(item[0]); 
     } catch (err) { 
-        console.error('Error fetching unit type item:', err);
-        res.status(500).send(formatMessageToClient('Error fetching unit type item'));
+        formatQuerySingleUnitErrorMessage('unit types', 'could not find unit type', id, err, res);
     }; 
 }); 
 
 app.put("/api/unittypes/:id", async (req, res) => {
     const id = parseInt(req.params.id);
+
     const { name } = req.body;
 
-    if (!validator.isLength(name, { max: 255 })) {
-        return res.status(400).json({ error: 'Name is too long' });
-    }
+    const loggerName = 'UNIT TYPES GET';
+
+    validateStringInput('name', name, loggerName, res);
 
     const q: string = `UPDATE UnitType SET name = '${name}' WHERE id = ${id} RETURNING *`;
      
     try {
         const item = await queryPostgres(q);
+
         res.status(200).send(item[0]);
     } catch (err) {
-        console.error('Error updating unit type item:', err);
-        res.status(500).send(formatMessageToClient('Error updating unit type item'));
+        formatQuerySingleUnitErrorMessage('unit type', 'could not update unit type', id, err, res);
     };
-
 });
 
 // #endregion
