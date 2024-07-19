@@ -41,7 +41,9 @@ export const getRoadmapId = async (req: Request, res: Response) => {
     try {
         const item = await queryPostgres(q);
 
-        res.status(200).send(item[0]);
+        const getItem = new Roadmap(item[0].name, item[0].description, item[0].id, item[0].type_id);
+
+        res.status(200).send(getItem);
     } catch (err) {
         formatQuerySingleUnitErrorMessage('tag', 'could not find tag', id, err, res);
     };
@@ -80,6 +82,7 @@ export const updateRoadmapId = async (req: Request, res: Response) => {
 
     const loggerName = 'ROADMAPS PUT';
 
+    validateNumberInput(id, 'ID for roadmap is invalid', loggerName, res);
     validateStringInput('name', name, loggerName, res);
     validateStringInput('description', description, loggerName, res);
 
@@ -87,7 +90,10 @@ export const updateRoadmapId = async (req: Request, res: Response) => {
 
     try {
         const item = await queryPostgres(q, [name, description]);
-        res.status(200).send(item[0]);
+
+        const newItem = new Roadmap(item[0].name, item[0].description, item[0].id, item[0].type_id);
+
+        res.status(200).send(newItem);
     } catch (err) {
         formatQuerySingleUnitErrorMessage('tag', 'could not update tag', id, err, res);
     };

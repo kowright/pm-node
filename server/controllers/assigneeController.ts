@@ -88,11 +88,11 @@ export const updateAssigneeId = async (req: Request, res: Response) => {
     validateStringInput('name', name, loggerName, res);
     validateStringInput('description', description, loggerName, res);
 
-    const q: string = formatSelectIdfromDatabaseQuery('Assignee', id); //change to an update query like below
-    //const q: string = `UPDATE TaskStatus SET name = $1, description = $2 WHERE id = ${id} RETURNING *`;
+    //const q: string = formatSelectIdfromDatabaseQuery('Assignee', id); //change to an update query like below
+    const q: string = `UPDATE Assignee SET name = $1, description = $2 WHERE id = ${id} RETURNING *`;
 
     try {
-        const item = await queryPostgres(q);
+        const item = await queryPostgres(q, [name, description]);
 
         const updatedItem = new Assignee(item[0].name, item[0].description, item[0].id, item[0].type_id);
 
