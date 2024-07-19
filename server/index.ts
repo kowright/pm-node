@@ -45,10 +45,26 @@ function formatMessageToServer(loggerName: string, text: string, err?: any): voi
         console.log(`[${loggerName}]: ${text}`);
     }
 }
+
+function formatQuerySingleUnitErrorMessage(singleUnitName: string, loggerName: string, id: number, err: any, res: Response) {
+    formatMessageToServer(loggerName, "couldn't query for " + singleUnitName + " id " + id, err);
+    res.status(400).send(formatMessageToClient('Error with query; no results returned'));
+}
+
+function formatQueryAllUnitsErrorMessage(pluralUnitName: string, loggerName: string, id: number, err: any, res: Response) {
+    formatMessageToServer(loggerName, "couldn't query for all " + pluralUnitName, err);
+    res.status(400).send(formatMessageToClient('Error with query; no results returned'));
+}
+
+function formatQueryDeleteUnitErrorMessage(singleUnitName: string, loggerName: string, id: number, err: any, res: Response) {
+    formatMessageToServer(loggerName, "couldn't find ID " + id + " for " + singleUnitName, err);
+    res.status(404).json(formatMessageToClient(singleUnitName + ' not found- does not exist in records'));
+}
 // #endregion
 
 //TODO make PUT requests just send the same thing back
 //TODO make POST requests call GET API
+//TODO replace validations
 
 // #region Fetching Other Endpoints
 const fetchData = async (suffix: string) => {
@@ -142,6 +158,34 @@ function isArrayOfNumbersValidator(tags: any): boolean {
     }
 
     return true; // All elements are numbers
+}
+
+function checkStringInputValidator(stringType: string, name: string, loggerName: string, res: Response) {
+    if (!validator.isLength(name, { max: 255 })) {
+        formatMessageToServer(loggerName, stringType + " is too long for " + name);
+        return res.status(400).json({ error: formatMessageToClient('Name is too long for task ' + name) });
+    }
+}
+
+function checkDateInputValidator(dateTitle: string, dateValue: string, loggerName: string, res: Response) {
+    if (!dayjs(dateValue, 'YYYY-MM-DD', true).isValid()) {
+        formatMessageToServer(loggerName, dateTitle + ' format is not correct: ' + dateValue);
+        return res.status(400).json({ error: formatMessageToClient(dateTitle + ' format is not correct: ' + dateValue) });
+    }
+}
+
+function checkNumberInputValidator(num: any, clientMessage: string, loggerName: string, res: Response) {
+    if(!isNumValidator(num)) {
+        formatMessageToServer(loggerName, num + ' is not a number');
+        return res.status(400).json({ error: formatMessageToClient(clientMessage) });
+    }
+}
+
+function checkArrayOfNumbersInputValidator(arrayName: string, array: any[], loggerName: string,res: Response) {
+    if (!isArrayOfNumbersValidator(array)) {
+        formatMessageToServer(loggerName, arrayName + ' is not an array of numbers')
+        return res.status(400).json({ error: formatMessageToClient('Params for milestone ' + arrayName + 'is invalid') });
+    }
 }
 
 // #endregion
@@ -359,6 +403,7 @@ app.put("/api/tasks/:id", async (req, res) => {  //TODO CLEAN UP
     const { name, description, assignee, startDate, endDate, tags, roadmaps } = req.body;
     const putTask: Task = req.body;
 
+    // #region Validation
     //TODO use putTask.<thing>
     if (!validator.isLength(name, { max: 255 })) {
         formatMessageToServer(loggerName, "Name is too long for " + name);
@@ -405,6 +450,7 @@ app.put("/api/tasks/:id", async (req, res) => {  //TODO CLEAN UP
         }
     }*/
 
+    // #endregion
     // #region Queries 
     const insertRowIntoTaskTagQ = `
     INSERT INTO TaskTag (task_id, tag_id)
@@ -529,7 +575,7 @@ app.post("/api/tasks", async (req, res) => {
     const { name, description, startDate, endDate, assignee, taskStatus, tags, roadmaps } = req.body;
     const loggerName = 'TASKS POST';
 
-    // #region Validators
+    // #region Validation
     if (!validator.isLength(name, { max: 255 })) {
         formatMessageToServer(loggerName, "Name is too long for " + name);
         return res.status(400).json({ error: formatMessageToClient('Name is too long for task ' + name) });
@@ -737,7 +783,9 @@ app.delete("/api/tasks/:id", async (req, res) => {
 
 //#region Milestones 
 app.get("/api/milestones", async (req, res) => {
-    const { roadmaps, tags} = req.query;
+    const { roadmaps, tags } = req.query;
+
+    const loggerName = 'MILESTONES GET';
 
     if (roadmaps && !isBooleanStringValidator(roadmaps as String) || (tags && !isBooleanStringValidator(tags as String))) {
         console.log("error: parameters must be in correct format");
@@ -767,74 +815,80 @@ app.get("/api/milestones", async (req, res) => {
     WHERE m.id = $1;`
 
     // #endregion
+
+    let list: any[] = [];
     try {
-        const list: any[] = await queryPostgres(q);
-        if (!list || list.length === 0) {
-            console.log("")
-            res.status(400).send(formatMessageToClient('Error with query; no results returned'));
-        };
+        list = await queryPostgres(q);
+    } catch (err) {
+        formatMessageToServer(loggerName, "couldn't query for all milestones", err);
+        res.status(400).send(formatMessageToClient('Error with query; no results returned'));
+    } 
 
-        let milestoneList: Milestone[] = [];
+    if (list.length === 0) {
+        formatMessageToServer(loggerName, "couldn't query for all milestones");
+        res.status(400).send(formatMessageToClient('Error with query; no results returned'));
+    };
+
+    let milestoneList: Milestone[] = [];
  
-        await Promise.all(list.map(async (ms) => {
-            const roadmapArray: Roadmap[] = [];
+    await Promise.all(list.map(async (ms) => {
 
+        const roadmapArray: Roadmap[] = [];
+        try {
             if (roadmaps === 'true') {
                 const roadmapList: any[] = await queryPostgres(roadmapQ, [ms.id]);
                 roadmapList.forEach(roadmap => {
                     roadmapArray.push(new Roadmap(roadmap.name, roadmap.description, roadmap.id, roadmap.type));
                 });
             };
-            console.log("m2")
-
-            const tagArray: Tag[] = [];
+        } catch (err) {
+            formatMessageToServer(loggerName, "couldn't execute roadmapQ", err);
+            res.status(400).send(formatMessageToClient('Error with query; no results returned'));
+        }
+     
+        const tagArray: Tag[] = [];
+        try {
             if (tags === 'true') {
                 const tagsList: any[] = await queryPostgres(tagsQ, [ms.id]);
                 tagsList.forEach(tag => {
                     tagArray.push(new Tag(tag.name, tag.description, tag.id, tag.type));
                 });
             };
-            console.log("m3")
-            console.log("ms id "+ ms.id)
+        } catch (err) {
+            formatMessageToServer(loggerName, "couldn't execute tagQ", err);
+            res.status(400).send(formatMessageToClient('Error with query; no results returned'));
+        }
+
+        let taskStatus: TaskStatus = new TaskStatus('', '', 0, 0); // placeholder value
+        try {
             const status = await queryPostgres(taskStatusQ, [ms.id]);
-            let taskStatus: TaskStatus;
             if (status.length > 0) {
-                const statusObject = status[0]; 
+                const statusObject = status[0];
                 taskStatus = new TaskStatus(statusObject.name, statusObject.description, statusObject.id, statusObject.type_id);
             }
-            else {
-                throw new Error(formatMessageToClient('Error with query'));
-                console.log("task status query for milestone gave back no results. Every milestone should have a task status")
-               
-            }
-            console.log("m4")
+        } catch (err) {
+            formatMessageToServer(loggerName, "couldn't fetch a task status for a milestone from postgres", err);
+            res.status(404).json(formatMessageToClient('Error with query', err));
+        }
+      
+        milestoneList.push(new Milestone(ms.name, ms.description, roadmapArray, tagArray, ms.date, taskStatus,
+            ms.id, ms.type_id));
+    }));
 
-            milestoneList.push(new Milestone(ms.name, ms.description, roadmapArray, tagArray, ms.date, taskStatus,
-                ms.id, ms.type_id));
-             console.log("m5")
-        }));
-
-
-        res.status(200).send(milestoneList);
-    } catch (err) {
-        console.error('Error fetching milestones:', err);
-        res.status(500).send(formatMessageToClient('Error fetching milestones'));
-    };
+    res.status(200).send(milestoneList);
 });
 
 app.get("/api/milestones/:id", async (req, res) => {
     const { roadmaps, tags } = req.query;
     const id = parseInt(req.params.id);
-    console.log("inside milestones :id")
+
+    const loggerName = 'MILESTONES ID GET';
 
     if ((roadmaps && !isBooleanStringValidator(roadmaps)) || (tags && !isBooleanStringValidator(tags))) {
-        console.log("error: parameters must be in correct format");
+        formatMessageToServer(loggerName, "roadmap and or tag are not in corret format");
         return res.status(400).json({ error: 'Parameters must be in correct format' });
     }
     
-
-    console.log("milestones :id roadmaps and tags good", roadmaps);
-
     if (!isNumValidator(id)) {
         return res.status(400).json({ error: formatMessageToClient('ID for milestones is invalid') });
     }
@@ -862,90 +916,91 @@ app.get("/api/milestones/:id", async (req, res) => {
         WHERE m.id = $1;`
 
     // #endregion
+
+    let queriedItem: any;
     try {
-        let queriedItem = await queryPostgres(q);
-        console.log(queriedItem)
-        const item = queriedItem[0];
-        const roadmapArray: Roadmap[] = [];
+        queriedItem = await queryPostgres(q);
+    } catch (err) {
+        formatMessageToServer(loggerName, "couldn't query for this milestone id " + id, err);
+        res.status(400).send(formatMessageToClient('Error with query; no results returned'));
+    } 
+    const item = queriedItem[0];
+
+    const roadmapArray: Roadmap[] = [];
+    try {
         if (roadmaps === 'true') {
-            console.log("finding roadmaps for milestone :id")
             const roadmapList: any[] = await queryPostgres(roadmapQ, [item.id]);
             roadmapList.forEach(roadmap => {
                 roadmapArray.push(new Roadmap(roadmap.name, roadmap.description, roadmap.id, roadmap.type));
             });
-        } else {
-            console.log("no get milestone :id roadmap for you")
-        }
-
-        const tagArray: Tag[] = [];
+        } 
+    } catch (err) {
+        formatMessageToServer(loggerName, "couldn't execute roadmapQ", err);
+        res.status(400).send(formatMessageToClient('Error with query; no results returned'));
+    }
+ 
+    const tagArray: Tag[] = [];
+    try {
         if (tags === 'true') {
-            console.log("finding roadmaps for milestone :id")
-
             const tagsList: any[] = await queryPostgres(tagsQ, [item.id]);
             tagsList.forEach(tag => {
                 tagArray.push(new Tag(tag.name, tag.description, tag.id, tag.type));
             });
-        } else {
-            console.log("no get milestone :id tag for you")
-        }
-
-        const status = await queryPostgres(taskStatusQ, [item.id]);
-        let taskStatus: TaskStatus;
-        if (status.length > 0) {
-            const statusObject = status[0];
-            taskStatus = new TaskStatus(statusObject.name, statusObject.description, statusObject.id, statusObject.type_id);
-        }
-        else {
-            res.status(400).send(formatMessageToClient('Error with query'));
-            return;
-        }
-
-        const newItem = new Milestone(item.name, item.description, roadmapArray, tagArray, item.date, taskStatus,
-            item.id, item.type_id)
-            console.log("new milestone in get milestone :id", newItem)
-        res.send(newItem);
+        } 
     } catch (err) {
-        console.error('Error fetching milestone:', err);
-        res.status(500).send(formatMessageToClient('Error fetching milestone'));
-    };
+        formatMessageToServer(loggerName, "couldn't execute tagQ", err);
+        res.status(400).send(formatMessageToClient('Error with query; no results returned'));
+    }
+
+    let taskStatus: TaskStatus = new TaskStatus('', '', 0, 0);
+    try {
+        const status = await queryPostgres(taskStatusQ, [item.id]);
+        const statusObject = status[0];
+        taskStatus = new TaskStatus(statusObject.name, statusObject.description, statusObject.id, statusObject.type_id);
+    } catch (err) {
+        formatMessageToServer(loggerName, "couldn't fetch a task status for a milestone from postgres", err);
+        res.status(404).json(formatMessageToClient('Error with query', err));
+    }
+
+    const newItem = new Milestone(item.name, item.description, roadmapArray, tagArray,
+        item.date, taskStatus, item.id, item.type_id);
+
+    res.send(newItem);
 }); 
 
 app.put("/api/milestones/:id", async (req, res) => { 
     const id = parseInt(req.params.id);
+
     const { name, description, date, taskStatus_id, tags, roadmaps } = req.body;
+
+    const loggerName = 'MILESTONES PUT';
+
     const putMilestone: Milestone = req.body;
 
-    if (!validator.isLength(name, { max: 255 })) {
-        return res.status(400).json({ error: formatMessageToClient('Name is too long for milestone ' + name) });
-    }
-    if (!validator.isLength(description, { max: 255 })) {
-        return res.status(400).json({ error: formatMessageToClient('Description is too long for milestone ' + name) });
-    }
-    if (!dayjs(date, 'YYYY-MM-DD', true).isValid()) {
-        return res.status(400).json({ error: formatMessageToClient('Date format is not correct for milestone ' + name) });
-    }
-    if (taskStatus_id && !isNumValidator(taskStatus_id)) {
-        return res.status(400).json({ error: formatMessageToClient('ID for milestone ' + name + 'is invalid') });
-    }
+    // #region Validation
+    checkNumberInputValidator(id, 'Could not proccess milestone due to its ID', loggerName, res);
+    checkStringInputValidator("Name", name, loggerName, res);
+    checkStringInputValidator("Description", name, loggerName, res);
+    checkDateInputValidator('Date', date, loggerName, res);
+    taskStatus_id && checkNumberInputValidator(taskStatus_id, 'Task Status is not valid for ' + name, loggerName, res);
     if (tags) {
         const sentTags = tags as Tag[];
-        console.log('tags', sentTags)
         const tagIds = sentTags.map(tag => tag.id);
         if (!isArrayOfNumbersValidator(tagIds)) {
-            return res.status(400).json({ error: formatMessageToClient('Params for task ' + name + 'is invalid') });
+            formatMessageToServer(loggerName, 'Tag input for milestone ' + name + 'is invalid');
+            return res.status(400).json({ error: formatMessageToClient('Could not process the given milestone tags for ' + name) });
         }
     }      
     if (roadmaps) {
         const sentRoadmaps = roadmaps as Roadmap[];
         const roadmapIds = sentRoadmaps.map(map => map.id);
         if (!isArrayOfNumbersValidator(roadmapIds)) {
-            return res.status(400).json({ error: formatMessageToClient('Params for task ' + name + 'is invalid') });
+            formatMessageToServer(loggerName, 'Roadmap input for milestone ' + name + 'is invalid');
+            return res.status(400).json({ error: formatMessageToClient('Could not process the given milestone roadmaps for ' + name) });
         }
     }   
-    if (!isNumValidator(id)) {
-        return res.status(400).json({ error: formatMessageToClient('ID for milestone is invalid') });
-    }
-
+    // #endregion
+  
     // #region Queries 
 
     const insertRowIntoMilestoneTagQ = `
@@ -990,102 +1045,121 @@ app.put("/api/milestones/:id", async (req, res) => {
 
     // #endregion
 
+    let item: any;
+
     try {
+        item = await queryPostgres(updateMilestoneQ, [name, description, date, putMilestone.taskStatus.id, id]);
+    } catch (err) {
+        formatQuerySingleUnitErrorMessage('milestone', loggerName, id, err, res);
+    }
 
-        const item = await queryPostgres(updateMilestoneQ, [name, description, date, putMilestone.taskStatus.id, id]);
-
-        //tags
-        const dbTagRows: any[] = await queryPostgres(getAllRowsFromMilestoneTagByMilestoneIdQ, [id]);
+    //tags
+    let newTagRows: any[] = [];
+    let dbTagRows: any[] = [];
+    try {
+        dbTagRows = await queryPostgres(getAllRowsFromMilestoneTagByMilestoneIdQ, [id]);
         const tagArrayFromParams: Tag[] = Array.isArray(tags) ? tags : JSON.parse(tags);
 
-        let newTagRows: any[] = [];
         tagArrayFromParams.map(tag => {
             newTagRows.push({
                 milestone_id: id,
                 tag_id: tag.id
             });
         });
+    } catch (err) {
+        formatQueryAllUnitsErrorMessage('tags for milestone', loggerName, id, err, res);
+    }
 
-        const rowsToDelete = dbTagRows.filter(dbRow =>
-            !newTagRows.some(newRow => newRow.milestone_id === dbRow.milestone_id && newRow.tag_id === dbRow.tag_id)
-        );
+    const rowsToDelete = dbTagRows.filter(dbRow =>
+        !newTagRows.some(newRow => newRow.milestone_id === dbRow.milestone_id && newRow.tag_id === dbRow.tag_id)
+    );
 
-        const rowsToInsert = newTagRows.filter(newRow =>
-            !dbTagRows.some(dbRow => dbRow.milestone_id === newRow.milestone_id && dbRow.tag_id === newRow.tag_id)
-        );
+    const rowsToInsert = newTagRows.filter(newRow =>
+        !dbTagRows.some(dbRow => dbRow.milestone_id === newRow.milestone_id && dbRow.tag_id === newRow.tag_id)
+    );
 
-        await Promise.all(rowsToDelete.map(async row => {
+    await Promise.all(rowsToDelete.map(async row => {
+        try {
             await queryPostgres(deleteRowFromMilestoneTagQ, [row.milestone_id, row.tag_id]);
-        }));
+        } catch (err) {
+            formatMessageToServer(loggerName, "couldn't delete tag rows for milestone " + id, err);
+            res.status(400).send(formatMessageToClient('Error with query; no results returned', err));
+        }
+    }));
 
-        await Promise.all(rowsToInsert.map(async row => {
+    await Promise.all(rowsToInsert.map(async row => {
+        try {
             await queryPostgres(insertRowIntoMilestoneTagQ, [row.milestone_id, row.tag_id]);
-        }));
 
-        //roadmaps
-        const dbRoadmapRows: any[] = await queryPostgres(getAllRowsFromRoadmapMilestoneByMilestoneIdQ, [id]);
+        } catch (err) {
+            formatMessageToServer(loggerName, "couldn't add tag rows for milestone " + id, err);
+            res.status(400).send(formatMessageToClient('Error with query; no results returned', err));
+        }
+    }));
+
+    //roadmaps
+    let dbRoadmapRows: any[] = [];
+    let newRoadmapRows: any[] = [];
+    try {
+        dbRoadmapRows = await queryPostgres(getAllRowsFromRoadmapMilestoneByMilestoneIdQ, [id]);
         let roadmapArrayFromParams: number[] = Array.isArray(roadmaps) ? roadmaps : JSON.parse(roadmaps);
         roadmapArrayFromParams = putMilestone.roadmaps.map(map => map.id);
-        let newRoadmapRows: any[] = [];
         roadmapArrayFromParams.map(map => {
             newRoadmapRows.push({
                 roadmap_id: map,
                 milestone_id: id
             });
         });
-      
-        const roadmapRowsToDelete = dbRoadmapRows.filter(dbRow =>
-            !newTagRows.some(newRow => newRow.milestone_id === dbRow.milestone_id && newRow.roadmap_id === dbRow.roadmap_id)
-        );
-        console.log("delete", roadmapRowsToDelete)
-        const roadmapRowsToInsert = newRoadmapRows.filter(newRow =>
-            !dbTagRows.some(dbRow => dbRow.milestone_id === newRow.milestone_id && dbRow.roadmap_id === newRow.roadmap_id)
-        );
-        console.log("insert", roadmapRowsToInsert)
-
-        await Promise.all(roadmapRowsToDelete.map(async row => {
-            await queryPostgres(deleteRowFromRoadmapMilestoneQ, [row.roadmap_id, row.milestone_id]);
-        }));
-
-        await Promise.all(roadmapRowsToInsert.map(async row => {
-            await queryPostgres(insertRowIntoRoadmapMilestoneQ, [row.roadmap_id, row.milestone_id]);
-        }));
-
-        if (item.length > 0) {
-            res.status(201).json(putMilestone); //hmm
-            console.log("milestone put result", item)
-        } else {
-            res.status(400).json(formatMessageToClient('Milestone ' + name + ' could not be updated'));
-        }
     } catch (err) {
-        console.error('Error fetching milestone:', err);
-        res.status(500).send(formatMessageToClient('Error fetching milestone'));
-    };
+        formatQueryAllUnitsErrorMessage('roadmaps for milestone', loggerName, id, err, res);
+    }
+
+      
+    const roadmapRowsToDelete = dbRoadmapRows.filter(dbRow =>
+        !newTagRows.some(newRow => newRow.milestone_id === dbRow.milestone_id && newRow.roadmap_id === dbRow.roadmap_id)
+    );
+    const roadmapRowsToInsert = newRoadmapRows.filter(newRow =>
+        !dbTagRows.some(dbRow => dbRow.milestone_id === newRow.milestone_id && dbRow.roadmap_id === newRow.roadmap_id)
+    );
+
+    await Promise.all(roadmapRowsToDelete.map(async row => {
+        try {
+            await queryPostgres(deleteRowFromRoadmapMilestoneQ, [row.roadmap_id, row.milestone_id]);
+
+        } catch (err) {
+            formatMessageToServer(loggerName, "couldn't delete roadmap rows for milestone " + id, err);
+            res.status(400).send(formatMessageToClient('Error with query; no results returned', err));
+        }
+    }));
+
+    await Promise.all(roadmapRowsToInsert.map(async row => {
+        try {
+            await queryPostgres(insertRowIntoRoadmapMilestoneQ, [row.roadmap_id, row.milestone_id]);
+
+        } catch (err) {
+            formatMessageToServer(loggerName, "couldn't add roadmap rows for milestone " + id, err);
+            res.status(400).send(formatMessageToClient('Error with query; no results returned', err));
+        }
+    }));
+
+
+    res.status(201).json(putMilestone); 
+ 
 });
 
 app.post("/api/milestones", async (req, res) => {
     const { name, description, date, taskStatus, tags, roadmaps } = req.body;
 
-    if (!validator.isLength(name, { max: 255 })) {
-        return res.status(400).json({ error: formatMessageToClient('Name is too long for milestone ' + name) });
-    }
-    if (!validator.isLength(description, { max: 255 })) {
-        return res.status(400).json({ error: formatMessageToClient('Description is too long for milestone ' + name) });
-    }
-    if (!dayjs(date, 'YYYY-MM-DD', true).isValid()) {
-        return res.status(400).json({ error: formatMessageToClient('Date format is not correct for milestone ' + name) });
-    }
-    if (taskStatus && !isNumValidator(taskStatus)) {
-        return res.status(400).json({ error: formatMessageToClient('ID for milestone ' + name + 'is invalid') });
-    }
-    if (!isArrayOfNumbersValidator(tags)) {
-        return res.status(400).json({ error: formatMessageToClient('Params for milestone ' + name + 'is invalid') });
-    }
-    if (!isArrayOfNumbersValidator(roadmaps)) {
-        return res.status(400).json({ error: formatMessageToClient('Params for milestone ' + name + 'is invalid') });
-    }
-    console.log("incoming roadmaps", roadmaps)
-    console.log("incoming tags", tags)
+    const loggerName = 'MILESTONES POST';
+
+    // #region Validation
+    checkStringInputValidator('Name', name, loggerName, res);
+    checkStringInputValidator('Description', description, loggerName, res)
+    checkDateInputValidator('Date', date, loggerName, res);
+    checkNumberInputValidator(taskStatus, 'Task Status is not valid', loggerName, res);
+    checkArrayOfNumbersInputValidator('tags', tags, loggerName, res);
+    checkArrayOfNumbersInputValidator('roadmaps', roadmaps, loggerName, res);
+    // #endregion
 
     // #region Queries 
 
@@ -1107,84 +1181,67 @@ app.post("/api/milestones", async (req, res) => {
 
     // #endregion
 
-    try {
-        const newItem = await queryPostgres(q, [name, description, date, taskStatus]);
-        const tagArray: number[] = Array.isArray(tags) ? tags : JSON.parse(tags);
+    const newItem = await queryPostgres(q, [name, description, date, taskStatus]);
+    const tagArray: number[] = Array.isArray(tags) ? tags : JSON.parse(tags);
 
-        let clientMessage: string = 'Milestone successfully made.\n';
-        await Promise.all(tagArray.map(async (tagId) => {
-            try {
-                const result = await queryPostgres(insertIntoMilestoneTag, [newItem[0].id, tagId]);
-                console.log("tag insert into", result)
-
-            }
-            catch (err: any) {
-                if (err.code === '23505') { 
-                    console.error("Error: Duplicate entry but its fine");
-                    clientMessage += 'Tag is already attached to milestone \n'
-                }
-                if (err.code === '23503') {
-                    clientMessage += 'Tags given does not exist but milestone still was made. \n'
-                }
-            }
-        }));
-
-        const roadmapArray: number[] = Array.isArray(roadmaps) ? roadmaps : JSON.parse(roadmaps);
-        await Promise.all(roadmapArray.map(async (mapId) => {
-            try {
-                const res = await queryPostgres(insertIntoRoadmapMilestone, [mapId, newItem[0].id,]);
-                console.log("roadmap insert into", res)
-            }
-            catch (err: any) {
-                if (err.code === '23505') {
-                    console.error("Error: Duplicate entry but its fine");
-                    clientMessage += 'Roadmap is already attached to milestone.\n'
-                }
-                if (err.code === '23503') {
-                    clientMessage += 'Roadmaps given does not exist but milestone still was made. \n'
-                }
-            }
-        }));
-
-        //remake milestone
-        let fullMilestone;
-        console.log("newITem ", newItem[0])
+    //let clientMessage: string = 'Milestone successfully made.\n';
+    await Promise.all(tagArray.map(async (tagId) => {
         try {
-            // Fetch data from another API endpoint
-            const url = '/api/milestones/' + newItem[0].id + '?roadmaps=true&tags=true';
-            console.log("using url ", url)
-             fullMilestone = await fetchData(url)
-            console.log("endpointception" ,fullMilestone );
-
-            
-
-
-        } catch (error) {
-            console.error('Error fetching post milestone data:', error);
-            res.status(500).json({ error: 'Error fetching data' });
+            await queryPostgres(insertIntoMilestoneTag, [newItem[0].id, tagId]);
         }
+        catch (err: any) {
+            if (err.code === '23505') { 
+                formatMessageToServer(loggerName, "Duplicate entry but its fine for " + name, err);
 
+               // clientMessage += 'Tag is already attached to milestone \n'
+            }
+            if (err.code === '23503') {
+                formatMessageToServer(loggerName, "Tags given don't exist but item was still made for " + name);
 
-
-        if (newItem.length > 0) {
-            res.status(201).json(fullMilestone);
-        } else {
-            res.status(400).json(formatMessageToClient('Milestone ' + name + ' could not be created'));
+               // clientMessage += 'Tags given does not exist but milestone still was made. \n'
+            }
         }
-    } catch (err) {
-        console.error('Error creating milestone: ' + name, err);
-        res.status(500).json(formatMessageToClient('Internal Server Error'));
+    }));
+
+    const roadmapArray: number[] = Array.isArray(roadmaps) ? roadmaps : JSON.parse(roadmaps);
+    await Promise.all(roadmapArray.map(async (mapId) => {
+        try {
+            const res = await queryPostgres(insertIntoRoadmapMilestone, [mapId, newItem[0].id,]);
+        }
+        catch (err: any) {
+            if (err.code === '23505') {
+                formatMessageToServer(loggerName, "Duplicate entry but its fine for " + name, err);
+               // clientMessage += 'Roadmap is already attached to milestone.\n'
+            }
+
+            if (err.code === '23503') {
+                formatMessageToServer(loggerName, "Tags given don't exist but item was still made for " + name);
+
+               // clientMessage += 'Roadmaps given does not exist but milestone still was made. \n'
+            }
+        }
+    }));
+
+    //remake milestone
+    let fullMilestone;
+    try {
+        const url = '/api/milestones/' + newItem[0].id + '?roadmaps=true&tags=true';
+        fullMilestone = await fetchData(url);
+    } catch (error) {
+        formatQuerySingleUnitErrorMessage('milestone', loggerName, newItem[0].id, error, res);
     }
+
+    res.status(201).json(fullMilestone);
+
 });
 
 app.delete("/api/milestones/:id", async (req, res) => {
     const id = parseInt(req.params.id);
 
-    if (!isNumValidator(id)) {
-        return res.status(400).json({ error: formatMessageToClient('ID for assignee is invalid') });
-    }
+    const loggerName = 'MILESTONES POST';
+ 
+    checkNumberInputValidator(id, 'Assignee ID is not valid', loggerName, res);
 
-    //database has constraint to delete id from joint tables
     const q = formatDeleteIdfromDatabaseQuery('Milestone', id);
 
     try {
@@ -1196,8 +1253,7 @@ app.delete("/api/milestones/:id", async (req, res) => {
             res.status(404).json(formatMessageToClient('Milestone not found- does not exist in records'));
         }
     } catch (err) {
-        console.error('Error deleting milestone:', err);
-        res.status(500).send(formatMessageToClient('Internal Server Error'));
+        formatQueryDeleteUnitErrorMessage('milestone', loggerName, id, err, res);
     };
 }); 
 
