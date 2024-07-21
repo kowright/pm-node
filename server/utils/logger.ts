@@ -35,6 +35,23 @@ export function formatQueryAllUnitsErrorMessage(pluralUnitName: string, loggerNa
 }
 
 export function formatQueryDeleteUnitErrorMessage(singleUnitName: string, loggerName: string, id: number, err: any, res: Response) {
+
+    if (err.code === '23503') { //the unit being deleted is still in use by a table
+        const tableName = err.table;
+
+        formatMessageToServer(loggerName, "couldn't insert into table for " + singleUnitName, err);
+
+        const errorMessage = formatMessageToClient(singleUnitName + ' could not be created found- does not exist in records')
+        //res.status(404).json(formatMessageToClient(singleUnitName + ' could not be created found- does not exist in records', err));
+
+
+
+        return res.status(404).json({
+            error: errorMessage,
+            table: tableName
+        });
+    }
+
     formatMessageToServer(loggerName, "couldn't find ID " + id + " for " + singleUnitName, err);
     res.status(404).json(formatMessageToClient(singleUnitName + ' not found- does not exist in records', err));
 }

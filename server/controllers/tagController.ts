@@ -34,7 +34,7 @@ export const getTagId = async (req: Request, res: Response) => {
 
     const loggerName = 'TAGS PUT';
 
-    validateNumberInput(id, 'ID for tag is invalid', loggerName, res);
+    if (!validateNumberInput('id', id, 'id is not valid', loggerName, res)) { return; }
 
     const q: string = formatSelectIdfromDatabaseQuery('Tag', id);
 
@@ -103,7 +103,7 @@ export const deleteTagId = async (req: Request, res: Response) => {
 
     const loggerName = 'TAGS PUT';
 
-    validateNumberInput(id, 'ID for tag is invalid', loggerName, res);
+    if (!validateNumberInput('id', id, 'id is not valid', loggerName, res)) { return; }
 
     const q = formatDeleteIdfromDatabaseQuery('Tag', id);
 

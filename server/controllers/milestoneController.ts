@@ -117,8 +117,7 @@ export const getMilestoneId = async (req: Request, res: Response) => {
         return res.status(400).json({ error: 'Parameters must be in correct format' });
     }
 
-
-    validateNumberInput(id, 'id for milestone is invalid', loggerName, res);
+    if (!validateNumberInput('id', id, 'ID for task is invalid', loggerName, res)) { return; };
 
     // #region Queries 
 
@@ -201,12 +200,14 @@ export const createMilestone = async (req: Request, res: Response) => {
     const loggerName = 'MILESTONES POST';
 
     // #region Validation
-    validateStringInput('Name', name, loggerName, res);
-    validateStringInput('Description', description, loggerName, res)
-    validateDateInput('Date', date, loggerName, res);
-    validateNumberInput(taskStatus, 'Task Status is not valid', loggerName, res);
-    validateArrayOfNumbersInput('tags', tags, loggerName, res);
-    validateArrayOfNumbersInput('roadmaps', roadmaps, loggerName, res);
+
+    if (!validateStringInput('Name', name, loggerName, res)) { return; }
+    if (!validateStringInput('Description', description, loggerName, res)) { return; }
+    if (!validateDateInput('Date', date, loggerName, res)) { return; }
+    if (!validateNumberInput('task status', taskStatus, 'Task Status is not valid', loggerName, res)) { return; }
+    if (!validateArrayOfNumbersInput('tags', tags, loggerName, res)) { return; }
+    if (!validateArrayOfNumbersInput('roadmaps', roadmaps, loggerName, res)) { return; }
+
     // #endregion
 
     // #region Queries 
@@ -297,20 +298,21 @@ export const updateMilestoneId = async (req: Request, res: Response) => {
     const putMilestone: Milestone = req.body;
 
     // #region Validation
-    validateNumberInput(id, 'Could not proccess milestone due to its ID', loggerName, res);
-    validateStringInput("Name", name, loggerName, res);
-    validateStringInput("Description", name, loggerName, res);
-    validateDateInput('Date', date, loggerName, res);
-    taskStatus_id && validateNumberInput(taskStatus_id, 'Task Status is not valid for ' + name, loggerName, res);
+
+    if (!validateStringInput('Name', name, loggerName, res)) { return; }
+    if (!validateStringInput('Description', description, loggerName, res)) { return; }
+    if (!validateDateInput('Date', date, loggerName, res)) { return; }
+    if (!validateNumberInput('task status', taskStatus_id, 'Task Status is not valid', loggerName, res)) { return; }
+    if (!validateNumberInput('id', id, 'ID for task is invalid', loggerName, res)) { return; };
     if (tags) {
         const sentTags = tags as Tag[];
         const tagIds = sentTags.map(tag => tag.id);
-        validateArrayOfNumbersInput('tag ids', tagIds, loggerName, res);
+        if (!validateArrayOfNumbersInput('tags ids', tagIds, loggerName, res)) { return; }
     }
     if (roadmaps) {
         const sentRoadmaps = roadmaps as Roadmap[];
         const roadmapIds = sentRoadmaps.map(map => map.id);
-        validateArrayOfNumbersInput('roadmap ids', roadmapIds, loggerName, res);
+        if (!validateArrayOfNumbersInput('roadmap ids', roadmapIds, loggerName, res)) { return; }
     }
     // #endregion
 
@@ -464,7 +466,7 @@ export const deleteMilestoneId = async (req: Request, res: Response) => {
 
     const loggerName = 'MILESTONES POST';
 
-    validateNumberInput(id, 'Assignee ID is not valid', loggerName, res);
+    if (!validateNumberInput('id', id, 'ID for task is invalid', loggerName, res)) { return; };
 
     const q = formatDeleteIdfromDatabaseQuery('Milestone', id);
 
@@ -479,8 +481,4 @@ export const deleteMilestoneId = async (req: Request, res: Response) => {
     } catch (err) {
         formatQueryDeleteUnitErrorMessage('milestone', loggerName, id, err, res);
     };
-}
-
-function isArrayOfNumbersValidator(tagIds: any[]) {
-    throw new Error('Function not implemented.');
 }

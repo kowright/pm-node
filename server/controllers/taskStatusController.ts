@@ -26,7 +26,8 @@ export const getTaskStatusId = async (req: Request, res: Response) => {
 
     const loggerName = 'TASK STATUS ID GET';
 
-    validateNumberInput(id, 'ID for task status is invalid', loggerName, res);
+    if (!validateNumberInput('id', id, 'ID for task is invalid', loggerName, res)) { return; };
+
 
     const q: string = formatSelectIdfromDatabaseQuery('TaskStatus', id);
 
@@ -73,9 +74,9 @@ export const updateTaskStatusId = async (req: Request, res: Response) => {
     const loggerName = 'TASK STATUS PUT';
 
     // #region Validation
-    validateNumberInput(id, 'ID for assignee is invalid', loggerName, res);
-    validateStringInput('name', name, loggerName, res);
-    validateStringInput('description', description, loggerName, res);
+    if (!validateNumberInput('id', id, 'ID for task is invalid', loggerName, res)) { return; };
+    if (!validateStringInput('Name', name, loggerName, res)) { return; }
+    if (!validateStringInput('Description', description, loggerName, res)) { return; }
     // #endregion
 
     const q: string = `UPDATE TaskStatus SET name = $1, description = $2 WHERE id = ${id} RETURNING *`;
@@ -95,7 +96,7 @@ export const deleteTaskStatusId = async (req: Request, res: Response) => {
 
     const loggerName = 'TASK STATUS DELETE';
 
-    validateNumberInput(id, 'could not find task status', loggerName, res);
+    if (!validateNumberInput('id', id, 'ID for task is invalid', loggerName, res)) { return; };
 
     const q = formatDeleteIdfromDatabaseQuery('TaskStatus', id);
 

@@ -25,7 +25,7 @@ export const getUnitTypesId = async (req: Request, res: Response) => {
 
     const loggerName = 'UNIT TYPES GET';
 
-    validateNumberInput(id, 'ID for tag is invalid', loggerName, res);
+    if (!validateNumberInput('id', id, 'ID for task is invalid', loggerName, res)) { return; };
 
     const q: string = formatSelectIdfromDatabaseQuery('UnitType', id);
 
@@ -45,7 +45,7 @@ export const updateUnitTypesId = async (req: Request, res: Response) => {
 
     const loggerName = 'UNIT TYPES GET';
 
-    validateStringInput('name', name, loggerName, res);
+    if (!validateStringInput('Name', name, loggerName, res)) { return; }
 
     const q: string = `UPDATE UnitType SET name = '${name}' WHERE id = ${id} RETURNING *`;
 

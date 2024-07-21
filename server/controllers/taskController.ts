@@ -224,14 +224,13 @@ export const createTask = async (req: Request, res: Response) => {
     const loggerName = loggerUnit + ' POST';
 
     // #region Validation
-
-    validateStringInput('Name', name, loggerName, res);
-    validateStringInput('Description', description, loggerName, res)
-    validateDateInput('Date', startDate, loggerName, res);
-    validateDateInput('Date', endDate, loggerName, res);
-    validateNumberInput(taskStatus, 'Task Status is not valid', loggerName, res);
-    validateArrayOfNumbersInput('tags', tags, loggerName, res);
-    validateArrayOfNumbersInput('roadmaps', roadmaps, loggerName, res);
+    if (!validateStringInput('Name', name, loggerName, res)) { return; }
+    if (!validateStringInput('Description', description, loggerName, res)) { return; }
+    if (!validateDateInput('Date', startDate, loggerName, res)) { return; }
+    if (!validateDateInput('Date', endDate, loggerName, res)) { return; }
+    if (!validateNumberInput('task status', taskStatus, 'Task Status is not valid', loggerName, res)) { return; }
+    if (!validateArrayOfNumbersInput('tags', tags, loggerName, res)) { return; }
+    if (!validateArrayOfNumbersInput('roadmaps', roadmaps, loggerName, res)) { return; }
     // #endregion
 
     // #region Queries 
@@ -387,35 +386,35 @@ export const updateTaskId = async (req: Request, res: Response) => {
 
     const { name, description, assignee, startDate, endDate, tags, roadmaps } = req.body;
     const putTask: Task = req.body;
+    console.log("assignee ", assignee)
+    const isNumValidator = (id: number) => {
+        if (isNaN(id) || id < 0) {
+            return false;
+        }
+        return true;
+    };
 
+    console.log("num valid" + isNumValidator(0));
     // #region Validation
-
-    validateStringInput('name', name, loggerName, res);
-    validateStringInput('description', description, loggerName, res);
-    validateDateInput('start date', startDate, loggerName, res);
-    validateDateInput('end date', startDate, loggerName, res);
-    validateNumberInput(putTask.taskStatus.id, 'task status is not valid', loggerName, res);
+    if (!validateStringInput('Name', name, loggerName, res)) { return; }
+    if (!validateStringInput('Description', description, loggerName, res)) { return; }
+    if (!validateDateInput('start date', startDate, loggerName, res)) { return; }
+    if (!validateDateInput('end date', endDate, loggerName, res)) { return; }
+    if (!validateNumberInput('task status', putTask.taskStatus.id, 'Task Status is not valid', loggerName, res)) { return; }
+    if (!validateNumberInput('id', id, 'ID for task is invalid', loggerName, res)) { return; };
+    if (!validateNumberInput('assignee id', assignee.id, 'ID for assignee is invalid', loggerName, res)) { return; }
     if (tags) {
         const sentTags = tags as Tag[];
         const tagIds = sentTags.map(tag => tag.id);
 
-        validateArrayOfNumbersInput('tag ids', tagIds, loggerName, res);
-
-    
+        if (!validateArrayOfNumbersInput('tags ids', tagIds, loggerName, res)) { return; }
     }
     if (roadmaps) {
         const sentRoadmaps = roadmaps as Roadmap[];
         const roadmapIds = sentRoadmaps.map(map => map.id);
 
-
-        validateArrayOfNumbersInput('roadmap ids', roadmapIds, loggerName, res);
+        if (!validateArrayOfNumbersInput('roadmaps ids', roadmapIds, loggerName, res)) { return; }
     }
- 
-    validateNumberInput(id, 'ID for task is invalid', loggerName, res);
-
-    validateNumberInput(assignee, 'ID for assignee is invalid', loggerName, res);
-
-
     // #endregion
 
     // #region Queries 
@@ -468,6 +467,7 @@ const deleteRowFromTaskRoadmapQ = `
         item = await queryPostgres(updateTaskQ, [name, description, startDate, endDate, assignee.id, putTask.taskStatus.id, id]);
     } catch (err) {
         formatQuerySingleUnitErrorMessage('task', loggerName, id, err, res);
+        return res.status(400).send(formatMessageToClient('Error with query; no results returned', err));
     }
 
     //tags
@@ -477,6 +477,8 @@ const deleteRowFromTaskRoadmapQ = `
         dbTagRows = await queryPostgres(getAllRowsFromTaskTagByTaskIdQ, [id]);
     } catch (err) {
         formatQueryAllUnitsErrorMessage('tags for task', loggerName, err, res);
+        return res.status(400).send(formatMessageToClient('Error with query; no results returned', err));
+
     }
     const tagArrayFromParams: Tag[] = Array.isArray(tags) ? tags : JSON.parse(tags);
     let newTagRows: any[] = [];
@@ -499,6 +501,7 @@ const deleteRowFromTaskRoadmapQ = `
             await queryPostgres(deleteRowFromTaskTagQ, [row.task_id, row.tag_id]);
         } catch (err) {
             formatQueryDeleteUnitErrorMessage('tags for task', loggerName, id, err, res);
+            return res.status(400).send(formatMessageToClient('Error with query; no results returned', err));
         }
     }));
 
@@ -507,7 +510,7 @@ const deleteRowFromTaskRoadmapQ = `
             await queryPostgres(insertRowIntoTaskTagQ, [row.task_id, row.tag_id]);
         } catch (err) {
             formatMessageToServer(loggerName, "couldn't add tag rows for task" + id, err);
-            res.status(400).send(formatMessageToClient('Error with query; no results returned', err));
+           return res.status(400).send(formatMessageToClient('Error with query; no results returned', err));
         }
     }));
 
@@ -541,6 +544,7 @@ const deleteRowFromTaskRoadmapQ = `
             await queryPostgres(deleteRowFromTaskRoadmapQ, [row.task_id, row.roadmap_id]);
         } catch (err) {
             formatQueryDeleteUnitErrorMessage('roadmaps for task', loggerName, id, err, res);
+            return res.status(400).send(formatMessageToClient('Error with query; no results returned', err));
         }
     }));
 
@@ -549,11 +553,11 @@ const deleteRowFromTaskRoadmapQ = `
             await queryPostgres(insertRowIntoTaskRoadmapQ, [row.task_id, row.roadmap_id,]);
         } catch (err) {
             formatMessageToServer(loggerName, "couldn't add roadmap rows for tasks " + id, err);
-            res.status(400).send(formatMessageToClient('Error with query; no results returned', err));
+            return res.status(400).send(formatMessageToClient('Error with query; no results returned', err));
         }
     }));
 
-    res.status(201).json(putTask);
+    return res.status(201).json(putTask);
 }
 
 export const deleteTaskId = async (req: Request, res: Response) => {
@@ -561,7 +565,7 @@ export const deleteTaskId = async (req: Request, res: Response) => {
 
     const loggerName = loggerUnit + ' DELETE';
 
-    validateNumberInput(id, 'ID for task is invalid', loggerName, res);
+    if (!validateNumberInput('id', id, 'ID for task is invalid', loggerName, res)) { return; }
 
     const q = formatDeleteIdfromDatabaseQuery('Task', id);
 

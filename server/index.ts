@@ -21,7 +21,7 @@ app.use('/api/tasks', taskRoutes);
 app.use('/api/milestones', milestoneRoutes);
 app.use('/api/tags', tagRoutes);
 app.use('/api/assignees', assigneeRoutes);
-app.use('/api/taskStatus', taskStatusRoutes);
+app.use('/api/taskstatus', taskStatusRoutes);
 app.use('/api/roadmaps', roadmapRoutes);
 app.use('/api/unittypes', unitTypeRoutes);
 

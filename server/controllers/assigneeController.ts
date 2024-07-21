@@ -36,7 +36,7 @@ export const getAssigneeId = async (req: Request, res: Response) => {
 
     const loggerName = 'ASSIGNEES ID GET';
 
-    validateNumberInput(id, 'ID for assignee is invalid', loggerName, res);
+    if (!validateNumberInput('id', id, 'id is not valid', loggerName, res)) { return; }
 
     const q: string = formatSelectIdfromDatabaseQuery('Assignee', id);
 
@@ -56,8 +56,8 @@ export const createAssignee = async (req: Request, res: Response) => {
 
     const loggerName = 'ASSIGNEES POST';
 
-    validateStringInput('name', name, loggerName, res);
-    validateStringInput('description', description, loggerName, res);
+    if (!validateStringInput('Name', name, loggerName, res)) { return; }
+    if (!validateStringInput('Description', description, loggerName, res)) { return; }
 
     const q: string = `
         INSERT INTO Assignee (name, description)
@@ -84,9 +84,9 @@ export const updateAssigneeId = async (req: Request, res: Response) => {
 
     const loggerName = 'ASSIGNEES PUT';
 
-    validateNumberInput(id, 'ID for assignee is invalid', loggerName, res);
-    validateStringInput('name', name, loggerName, res);
-    validateStringInput('description', description, loggerName, res);
+    if (!validateNumberInput('id', id, 'id is not valid', loggerName, res)) { return; }
+    if (!validateStringInput('Name', name, loggerName, res)) { return; }
+    if (!validateStringInput('Description', description, loggerName, res)) { return; }
 
     //const q: string = formatSelectIdfromDatabaseQuery('Assignee', id); //change to an update query like below
     const q: string = `UPDATE Assignee SET name = $1, description = $2 WHERE id = ${id} RETURNING *`;
@@ -107,7 +107,7 @@ export const deleteAssigneeId = async (req: Request, res: Response) => {
 
     const loggerName = 'ASSIGNEES DELETE';
 
-    validateNumberInput(id, 'could not find assignee', loggerName, res);
+    if (!validateNumberInput('id', id, 'id is not valid', loggerName, res)) { return; }
 
     const q = formatDeleteIdfromDatabaseQuery('Assignee', id);
 

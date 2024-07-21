@@ -34,7 +34,7 @@ export const getRoadmapId = async (req: Request, res: Response) => {
 
     const loggerName = 'ROADMAPS ID GET';
 
-    validateNumberInput(id, 'ID for roadmap is invalid', loggerName, res);
+    if (!validateNumberInput('id', id, 'ID for task is invalid', loggerName, res)) { return; };
 
     const q: string = formatSelectIdfromDatabaseQuery('Roadmap', id);
 
@@ -54,8 +54,8 @@ export const createRoadmap = async (req: Request, res: Response) => {
 
     const loggerName = 'ROADMAPS POST';
 
-    validateStringInput('name', name, loggerName, res);
-    validateStringInput('description', description, loggerName, res);
+    if (!validateStringInput('Name', name, loggerName, res)) { return; }
+    if (!validateStringInput('Description', description, loggerName, res)) { return; }
 
     const q: string = `
         INSERT INTO Roadmap (name, description)
@@ -82,9 +82,9 @@ export const updateRoadmapId = async (req: Request, res: Response) => {
 
     const loggerName = 'ROADMAPS PUT';
 
-    validateNumberInput(id, 'ID for roadmap is invalid', loggerName, res);
-    validateStringInput('name', name, loggerName, res);
-    validateStringInput('description', description, loggerName, res);
+    if (!validateNumberInput('id', id, 'ID for task is invalid', loggerName, res)) { return; };
+    if (!validateStringInput('Name', name, loggerName, res)) { return; }
+    if (!validateStringInput('Description', description, loggerName, res)) { return; }
 
     const q: string = `UPDATE Roadmap SET name = $1, description = $2 WHERE id = ${id} RETURNING *`;
 
@@ -104,7 +104,7 @@ export const deleteRoadmapId = async (req: Request, res: Response) => {
 
     const loggerName = 'ROADMAPS DELETE';
 
-    validateNumberInput(id, 'ID for tag is invalid', loggerName, res);
+    if (!validateNumberInput('id', id, 'ID for task is invalid', loggerName, res)) { return; };
 
     const q = formatDeleteIdfromDatabaseQuery('Roadmap', id);
 
