@@ -2,7 +2,7 @@ import { Request, Response } from 'express';
 import { formatDeleteIdfromDatabaseQuery, formatSelectAllFromTable, formatSelectIdfromDatabaseQuery } from '../database/queries';
 import { formatQueryAllUnitsErrorMessage, formatQueryDeleteUnitErrorMessage, formatQueryPostUnitErrorMessage, formatQuerySingleUnitErrorMessage } from '../utils/logger';
 import { queryPostgres } from '../database/postgres';
-import { validateNumberInput, validateStringInput } from '../utils/validators';
+import { validateNumberInput, validateStringInput, validationPassStatusCode } from '../utils/validators';
 
 import Assignee from '../models/Assignee';
 
@@ -20,7 +20,8 @@ export const getAssignees = async (req: Request, res: Response) => {
     try {
         list = await queryPostgres(q);
     } catch (err) {
-       return formatQueryAllUnitsErrorMessage('assignes', loggerName, err, res);
+        const { statusCode, message } = formatQueryAllUnitsErrorMessage('tags', loggerName, err);
+        return res.status(statusCode).send(message);
     }
 
     const newList: Assignee[] = [];
@@ -36,7 +37,10 @@ export const getAssigneeId = async (req: Request, res: Response) => {
 
     const loggerName = 'ASSIGNEES ID GET';
 
-    if (!validateNumberInput('id', id, 'id is not valid', loggerName, res)) { return; }
+    const numValidation = validateNumberInput('id', id, 'id is not valid', loggerName);
+    if (numValidation.statusCode !== validationPassStatusCode) {
+        return res.status(numValidation.statusCode).json({ error: numValidation.message });
+    }
 
     const q: string = formatSelectIdfromDatabaseQuery('Assignee', id);
 
@@ -47,7 +51,8 @@ export const getAssigneeId = async (req: Request, res: Response) => {
 
         return res.status(200).send(newItem);
     } catch (err) {
-        return formatQuerySingleUnitErrorMessage('assignee', loggerName, id, err, res);
+        const { statusCode, message } = formatQuerySingleUnitErrorMessage('assignee', loggerName, id, err);
+        return res.status(statusCode).send(message);
     };
 }
 
@@ -56,8 +61,15 @@ export const createAssignee = async (req: Request, res: Response) => {
 
     const loggerName = 'ASSIGNEES POST';
 
-    if (!validateStringInput('Name', name, loggerName, res)) { return; }
-    if (!validateStringInput('Description', description, loggerName, res)) { return; }
+    const nameValidation = validateStringInput('Name', name, loggerName);
+    if (nameValidation.statusCode !== validationPassStatusCode) {
+        return res.status(nameValidation.statusCode).json({ error: nameValidation.message });
+    }
+
+    const descriptionValidationResult = validateStringInput('Description', description, loggerName);
+    if (descriptionValidationResult.statusCode !== validationPassStatusCode) {
+        return res.status(descriptionValidationResult.statusCode).json({ error: descriptionValidationResult.message });
+    }
 
     const q: string = `
         INSERT INTO Assignee (name, description)
@@ -73,7 +85,8 @@ export const createAssignee = async (req: Request, res: Response) => {
         return res.status(201).json(newItem);
 
     } catch (err) {
-        return formatQueryPostUnitErrorMessage('assignee', loggerName, err, res);
+        const { statusCode, message } = formatQueryPostUnitErrorMessage('assignee', loggerName, err);
+        return res.status(statusCode).send(message);
     }
 }
 
@@ -84,9 +97,23 @@ export const updateAssigneeId = async (req: Request, res: Response) => {
 
     const loggerName = 'ASSIGNEES PUT';
 
-    if (!validateNumberInput('id', id, 'id is not valid', loggerName, res)) { return; }
-    if (!validateStringInput('Name', name, loggerName, res)) { return; }
-    if (!validateStringInput('Description', description, loggerName, res)) { return; }
+    // #region Validation
+    const numValidation = validateNumberInput('id', id, 'id is not valid', loggerName);
+    if (numValidation.statusCode !== validationPassStatusCode) {
+        return res.status(numValidation.statusCode).json({ error: numValidation.message });
+    }
+
+    const nameValidation = validateStringInput('Name', name, loggerName);
+    if (nameValidation.statusCode !== validationPassStatusCode) {
+        return res.status(nameValidation.statusCode).json({ error: nameValidation.message });
+    }
+
+    const descriptionValidationResult = validateStringInput('Description', description, loggerName);
+    if (descriptionValidationResult.statusCode !== validationPassStatusCode) {
+        return res.status(descriptionValidationResult.statusCode).json({ error: descriptionValidationResult.message });
+    }
+
+    // #endregion
 
     //const q: string = formatSelectIdfromDatabaseQuery('Assignee', id); //change to an update query like below
     const q: string = `UPDATE Assignee SET name = $1, description = $2 WHERE id = ${id} RETURNING *`;
@@ -97,8 +124,9 @@ export const updateAssigneeId = async (req: Request, res: Response) => {
         const updatedItem = new Assignee(item[0].name, item[0].description, item[0].id, item[0].type_id);
 
         return res.status(200).send(updatedItem);
-    } catch (err) {
-        return formatQuerySingleUnitErrorMessage('assignee', loggerName, id, err, res);
+    } catch (err) { 
+        const { statusCode, message } = formatQuerySingleUnitErrorMessage('assignee', loggerName, id, err);
+        return res.status(statusCode).send(message);
     };
 }
 
@@ -107,7 +135,10 @@ export const deleteAssigneeId = async (req: Request, res: Response) => {
 
     const loggerName = 'ASSIGNEES DELETE';
 
-    if (!validateNumberInput('id', id, 'id is not valid', loggerName, res)) { return; }
+    const numValidation = validateNumberInput('id', id, 'id is not valid', loggerName);
+    if (numValidation.statusCode !== validationPassStatusCode) {
+        return res.status(numValidation.statusCode).json({ error: numValidation.message });
+    }
 
     const q = formatDeleteIdfromDatabaseQuery('Assignee', id);
 
@@ -116,6 +147,7 @@ export const deleteAssigneeId = async (req: Request, res: Response) => {
 
         return res.status(200).json('deleted');
     } catch (err) {
-       return formatQueryDeleteUnitErrorMessage('assignee', loggerName, id, err, res);
+        const { statusCode, errorMessage, table } = formatQueryDeleteUnitErrorMessage('assignee', loggerName, id, err);
+        return res.status(statusCode).send({ error: errorMessage, table: table } );
     };
 }

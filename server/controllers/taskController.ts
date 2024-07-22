@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import { formatMessageToClient, formatMessageToServer, formatQueryAllUnitsErrorMessage, formatQueryDeleteUnitErrorMessage, formatQueryPostUnitErrorMessage, formatQuerySingleUnitErrorMessage } from '../utils/logger';
-import { isBooleanStringValidator, validateArrayOfNumbersInput, validateDateInput, validateNumberInput, validateStringInput } from '../utils/validators';
+import { isBooleanStringValidator, validateArrayOfNumbersInput, validateDateInput, validateNumberInput, validateStringInput, validationPassStatusCode } from '../utils/validators';
 import { queryPostgres } from '../database/postgres';
 import { Task } from '../models/Task';
 import Roadmap from '../models/Roadmap';
@@ -224,13 +224,40 @@ export const createTask = async (req: Request, res: Response) => {
     const loggerName = loggerUnit + ' POST';
 
     // #region Validation
-    if (!validateStringInput('Name', name, loggerName, res)) { return; }
-    if (!validateStringInput('Description', description, loggerName, res)) { return; }
-    if (!validateDateInput('Date', startDate, loggerName, res)) { return; }
-    if (!validateDateInput('Date', endDate, loggerName, res)) { return; }
-    if (!validateNumberInput('task status', taskStatus, 'Task Status is not valid', loggerName, res)) { return; }
-    if (!validateArrayOfNumbersInput('tags', tags, loggerName, res)) { return; }
-    if (!validateArrayOfNumbersInput('roadmaps', roadmaps, loggerName, res)) { return; }
+    const nameValidation = validateStringInput('Name', name, loggerName);
+    if (nameValidation.statusCode !== validationPassStatusCode) {
+        return res.status(nameValidation.statusCode).json({ error: nameValidation.message });
+    }
+
+    const descriptionValidationResult = validateStringInput('Description', description, loggerName);
+    if (descriptionValidationResult.statusCode !== validationPassStatusCode) {
+        return res.status(descriptionValidationResult.statusCode).json({ error: descriptionValidationResult.message });
+    }
+
+    const startDateValidation = validateDateInput('Start Date', startDate, loggerName);
+    if (startDateValidation.statusCode !== validationPassStatusCode) {
+        return res.status(startDateValidation.statusCode).json({ error: startDateValidation.message });
+    }
+
+    const endDateValidation = validateDateInput('End Date', endDate, loggerName);
+    if (endDateValidation.statusCode !== validationPassStatusCode) {
+        return res.status(endDateValidation.statusCode).json({ error: endDateValidation.message });
+    }
+
+    const taskStatusValidation = validateNumberInput('task status', taskStatus, 'task status is not valid', loggerName);
+    if (taskStatusValidation.statusCode !== validationPassStatusCode) {
+        return res.status(taskStatusValidation.statusCode).json({ error: taskStatusValidation.message });
+    }
+
+    const tagsValidation = validateArrayOfNumbersInput('tags', tags, loggerName);
+    if (tagsValidation.statusCode !== validationPassStatusCode) {
+        return res.status(tagsValidation.statusCode).json({ error: tagsValidation.message });
+    }
+
+    const roadmapsValidation = validateArrayOfNumbersInput('roadmaps', roadmaps, loggerName);
+    if (roadmapsValidation.statusCode !== validationPassStatusCode) {
+        return res.status(roadmapsValidation.statusCode).json({ error: roadmapsValidation.message });
+    }
     // #endregion
 
     // #region Queries 
@@ -299,7 +326,8 @@ export const createTask = async (req: Request, res: Response) => {
     try {
         newItem = await queryPostgres(q, [name, description, startDate, endDate, assignee, taskStatus]);
     } catch (err) {
-        return formatQueryPostUnitErrorMessage('task', loggerName, err, res);
+        const { statusCode, message } = formatQueryPostUnitErrorMessage('task', loggerName, err);
+        return res.status(statusCode).send(message);
     }
 
     // let clientMessage: string = 'Task successfully made.\n';
@@ -348,7 +376,8 @@ export const createTask = async (req: Request, res: Response) => {
             roadmapGetArray.push(new Roadmap(roadmap.name, roadmap.description, roadmap.id, roadmap.type_id));
         });
     } catch (err) {
-        formatQueryAllUnitsErrorMessage('roadmaps for task', loggerName, err, res);
+        const { statusCode, message } = formatQueryAllUnitsErrorMessage('roadmaps for task', loggerName, err);
+        return res.status(statusCode).send(message);
     }
 
     const tagGetArray: Tag[] = [];
@@ -358,14 +387,16 @@ export const createTask = async (req: Request, res: Response) => {
             tagGetArray.push(new Tag(tag.name, tag.description, tag.id, tag.type_id));
         });
     } catch (err) {
-        return formatQueryAllUnitsErrorMessage('tags for task', loggerName, err, res);
+        const { statusCode, message } = formatQueryAllUnitsErrorMessage('tags for task', loggerName, err);
+        return res.status(statusCode).send(message);
     }
 
     let fullTaskObj: any;
     try {
         fullTaskObj = await queryPostgres(getEverything, [t.id]);
     } catch (err) {
-        return formatQuerySingleUnitErrorMessage('task', loggerName, t.id, err, res);
+     const { statusCode, message } = formatQuerySingleUnitErrorMessage('task', loggerName, t.id, err);
+        return res.status(statusCode).send(message);
     }
 
     const fullTask = fullTaskObj[0];
@@ -386,27 +417,54 @@ export const updateTaskId = async (req: Request, res: Response) => {
 
     const { name, description, assignee, startDate, endDate, tags, roadmaps } = req.body;
     const putTask: Task = req.body;
-    console.log("assignee ", assignee)
 
     // #region Validation
-    if (!validateStringInput('Name', name, loggerName, res)) { return; }
-    if (!validateStringInput('Description', description, loggerName, res)) { return; }
-    if (!validateDateInput('start date', startDate, loggerName, res)) { return; }
-    if (!validateDateInput('end date', endDate, loggerName, res)) { return; }
-    if (!validateNumberInput('task status', putTask.taskStatus.id, 'Task Status is not valid', loggerName, res)) { return; }
-    if (!validateNumberInput('id', id, 'ID for task is invalid', loggerName, res)) { return; };
-    if (!validateNumberInput('assignee id', assignee.id, 'ID for assignee is invalid', loggerName, res)) { return; }
+
+    const nameValidation = validateStringInput('Name', name, loggerName);
+    if (nameValidation.statusCode !== validationPassStatusCode) {
+        return res.status(nameValidation.statusCode).json({ error: nameValidation.message });
+    }
+
+    const descriptionValidationResult = validateStringInput('Description', description, loggerName);
+    if (descriptionValidationResult.statusCode !== validationPassStatusCode) {
+        return res.status(descriptionValidationResult.statusCode).json({ error: descriptionValidationResult.message });
+    }
+
+    const startDateValidation = validateDateInput('Start Date', startDate, loggerName);
+    if (startDateValidation.statusCode !== validationPassStatusCode) {
+        return res.status(startDateValidation.statusCode).json({ error: startDateValidation.message });
+    }
+
+    const endDateValidation = validateDateInput('End Date', endDate, loggerName);
+    if (endDateValidation.statusCode !== validationPassStatusCode) {
+        return res.status(endDateValidation.statusCode).json({ error: endDateValidation.message });
+    }
+
+    const taskStatusValidation = validateNumberInput('task status', putTask.taskStatus.id, 'task status is not valid', loggerName);
+    if (taskStatusValidation.statusCode !== validationPassStatusCode) {
+        return res.status(taskStatusValidation.statusCode).json({ error: taskStatusValidation.message });
+    }
+
+    const tagsValidation = validateArrayOfNumbersInput('tags', tags, loggerName);
+    if (tagsValidation.statusCode !== validationPassStatusCode) {
+        return res.status(tagsValidation.statusCode).json({ error: tagsValidation.message });
+    }
+
     if (tags) {
         const sentTags = tags as Tag[];
         const tagIds = sentTags.map(tag => tag.id);
-
-        if (!validateArrayOfNumbersInput('tags ids', tagIds, loggerName, res)) { return; }
+        const tagsValidation = validateArrayOfNumbersInput('tags', tagIds, loggerName);
+        if (tagsValidation.statusCode !== validationPassStatusCode) {
+            return res.status(tagsValidation.statusCode).json({ error: tagsValidation.message });
+        }
     }
     if (roadmaps) {
         const sentRoadmaps = roadmaps as Roadmap[];
         const roadmapIds = sentRoadmaps.map(map => map.id);
-
-        if (!validateArrayOfNumbersInput('roadmaps ids', roadmapIds, loggerName, res)) { return; }
+        const roadmapsValidation = validateArrayOfNumbersInput('roadmaps', roadmapIds, loggerName);
+        if (roadmapsValidation.statusCode !== validationPassStatusCode) {
+            return res.status(roadmapsValidation.statusCode).json({ error: roadmapsValidation.message });
+        }
     }
     // #endregion
 
@@ -459,8 +517,8 @@ const deleteRowFromTaskRoadmapQ = `
     try {
         item = await queryPostgres(updateTaskQ, [name, description, startDate, endDate, assignee.id, putTask.taskStatus.id, id]);
     } catch (err) {
-        formatQuerySingleUnitErrorMessage('task', loggerName, id, err, res);
-        return res.status(400).send(formatMessageToClient('Error with query; no results returned', err));
+        const { statusCode, message } = formatQuerySingleUnitErrorMessage('task', loggerName, id, err);
+        return res.status(statusCode).send(message);
     }
 
     //tags
@@ -469,9 +527,8 @@ const deleteRowFromTaskRoadmapQ = `
     try {
         dbTagRows = await queryPostgres(getAllRowsFromTaskTagByTaskIdQ, [id]);
     } catch (err) {
-        formatQueryAllUnitsErrorMessage('tags for task', loggerName, err, res);
-        return res.status(400).send(formatMessageToClient('Error with query; no results returned', err));
-
+        const { statusCode, message } = formatQueryAllUnitsErrorMessage('tasks', loggerName, err);
+        return res.status(statusCode).send(message);
     }
     const tagArrayFromParams: Tag[] = Array.isArray(tags) ? tags : JSON.parse(tags);
     let newTagRows: any[] = [];
@@ -493,8 +550,8 @@ const deleteRowFromTaskRoadmapQ = `
         try {
             await queryPostgres(deleteRowFromTaskTagQ, [row.task_id, row.tag_id]);
         } catch (err) {
-            formatQueryDeleteUnitErrorMessage('tags for task', loggerName, id, err, res);
-            return res.status(400).send(formatMessageToClient('Error with query; no results returned', err));
+            const { statusCode, errorMessage, table } = formatQueryDeleteUnitErrorMessage('tags for task', loggerName, id, err);
+            return res.status(statusCode).send({ error: errorMessage, table: table });
         }
     }));
 
@@ -513,7 +570,8 @@ const deleteRowFromTaskRoadmapQ = `
     try {
         dbRoadmapRows = await queryPostgres(getAllRowsFromTaskRoadmapByTaskIdQ, [id]);
     } catch (err) {
-        return formatQueryAllUnitsErrorMessage('roadmaps for task', loggerName, err, res);
+        const { statusCode, message } = formatQueryAllUnitsErrorMessage('tags', loggerName, err);
+        return res.status(statusCode).send(message);
     }
     let roadmapArrayFromParams: number[] = Array.isArray(roadmaps) ? roadmaps : JSON.parse(roadmaps);
     roadmapArrayFromParams = putTask.roadmaps.map(map => map.id);
@@ -536,8 +594,8 @@ const deleteRowFromTaskRoadmapQ = `
         try {
             await queryPostgres(deleteRowFromTaskRoadmapQ, [row.task_id, row.roadmap_id]);
         } catch (err) {
-            formatQueryDeleteUnitErrorMessage('roadmaps for task', loggerName, id, err, res);
-            return res.status(400).send(formatMessageToClient('Error with query; no results returned', err));
+        const { statusCode, errorMessage, table } = formatQueryDeleteUnitErrorMessage('roadmaps for task', loggerName, id, err);
+        return res.status(statusCode).send({ error: errorMessage, table: table } );
         }
     }));
 
@@ -558,7 +616,10 @@ export const deleteTaskId = async (req: Request, res: Response) => {
 
     const loggerName = loggerUnit + ' DELETE';
 
-    if (!validateNumberInput('id', id, 'ID for task is invalid', loggerName, res)) { return; }
+    const numValidation = validateNumberInput('id', id, 'id is not valid', loggerName);
+    if (numValidation.statusCode !== validationPassStatusCode) {
+        return res.status(numValidation.statusCode).json({ error: numValidation.message });
+    }
 
     const q = formatDeleteIdfromDatabaseQuery('Task', id);
 
@@ -566,6 +627,7 @@ export const deleteTaskId = async (req: Request, res: Response) => {
         await queryPostgres(q);
         return res.status(200).json('deleted');
     } catch (err) {
-        return formatQueryDeleteUnitErrorMessage('task', loggerName, id, err, res);
+        const { statusCode, errorMessage, table } = formatQueryDeleteUnitErrorMessage('task', loggerName, id, err);
+        return res.status(statusCode).send({ error: errorMessage, table: table });
     };
 }

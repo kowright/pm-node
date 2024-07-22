@@ -2,7 +2,7 @@ import { Request, Response } from 'express';
 import { formatDeleteIdfromDatabaseQuery, formatSelectAllFromTable, formatSelectIdfromDatabaseQuery } from '../database/queries';
 import { formatQueryAllUnitsErrorMessage, formatQueryDeleteUnitErrorMessage, formatQueryPostUnitErrorMessage, formatQuerySingleUnitErrorMessage } from '../utils/logger';
 import { queryPostgres } from '../database/postgres';
-import { validateNumberInput, validateStringInput } from '../utils/validators';
+import { validateNumberInput, validateStringInput, validationPassStatusCode } from '../utils/validators';
 import TaskStatus from '../models/TaskStatus';
 const loggerName = 'TASK STATUS';
 
@@ -17,8 +17,8 @@ export const getTaskStatuses = async (req: Request, res: Response) => {
 
         return res.status(200).send(list);
     } catch (err) {
-        return formatQueryAllUnitsErrorMessage('task status', loggerName, err, res);
-    };
+        const { statusCode, message } = formatQueryAllUnitsErrorMessage('task statuses', loggerName, err);
+        return res.status(statusCode).send(message);    };
 }
 
 export const getTaskStatusId = async (req: Request, res: Response) => {
@@ -26,17 +26,22 @@ export const getTaskStatusId = async (req: Request, res: Response) => {
 
     const loggerName = 'TASK STATUS ID GET';
 
-    if (!validateNumberInput('id', id, 'ID for task is invalid', loggerName, res)) { return; };
-
+    const numValidation = validateNumberInput('id', id, 'id is not valid', loggerName);
+    if (numValidation.statusCode !== validationPassStatusCode) {
+        return res.status(numValidation.statusCode).json({ error: numValidation.message });
+    }
 
     const q: string = formatSelectIdfromDatabaseQuery('TaskStatus', id);
 
     try {
-        const item = await queryPostgres(q); //TODO change to create a task status 
+        const item = await queryPostgres(q);
 
-        return res.status(200).send(item[0]);
+        const newItem = new TaskStatus(item[0].name, item[0].description, item[0].id, item[0].type_id)
+
+        return res.status(200).send(newItem);
     } catch (err) {
-        return formatQuerySingleUnitErrorMessage('task status', loggerName, id, err, res);
+        const { statusCode, message } = formatQuerySingleUnitErrorMessage('task status', loggerName, id, err);
+        return res.status(statusCode).send(message);
     };
 }
 
@@ -45,8 +50,15 @@ export const createTaskStatus = async (req: Request, res: Response) => {
 
     const loggerName = 'TASK STATUS POST';
 
-    validateStringInput('name', name, loggerName, res);
-    validateStringInput('description', description, loggerName, res);
+    const nameValidation = validateStringInput('Name', name, loggerName);
+    if (nameValidation.statusCode !== validationPassStatusCode) {
+        return res.status(nameValidation.statusCode).json({ error: nameValidation.message });
+    }
+
+    const descriptionValidationResult = validateStringInput('Description', description, loggerName);
+    if (descriptionValidationResult.statusCode !== validationPassStatusCode) {
+        return res.status(descriptionValidationResult.statusCode).json({ error: descriptionValidationResult.message });
+    }
 
     const q: string = `
         INSERT INTO TaskStatus (name, description)
@@ -62,7 +74,8 @@ export const createTaskStatus = async (req: Request, res: Response) => {
         return res.status(201).json(newItem);
 
     } catch (err) {
-        return formatQueryPostUnitErrorMessage('assignee', loggerName, err, res);
+        const { statusCode, message } = formatQueryPostUnitErrorMessage('task status', loggerName, err);
+        return res.status(statusCode).send(message);
     }
 }
 
@@ -74,20 +87,33 @@ export const updateTaskStatusId = async (req: Request, res: Response) => {
     const loggerName = 'TASK STATUS PUT';
 
     // #region Validation
-    if (!validateNumberInput('id', id, 'ID for task is invalid', loggerName, res)) { return; };
-    if (!validateStringInput('Name', name, loggerName, res)) { return; }
-    if (!validateStringInput('Description', description, loggerName, res)) { return; }
+    const numValidation = validateNumberInput('id', id, 'id is not valid', loggerName);
+    if (numValidation.statusCode !== validationPassStatusCode) {
+        return res.status(numValidation.statusCode).json({ error: numValidation.message });
+    }
+
+    const nameValidation = validateStringInput('Name', name, loggerName);
+    if (nameValidation.statusCode !== validationPassStatusCode) {
+        return res.status(nameValidation.statusCode).json({ error: nameValidation.message });
+    }
+
+    const descriptionValidationResult = validateStringInput('Description', description, loggerName);
+    if (descriptionValidationResult.statusCode !== validationPassStatusCode) {
+        return res.status(descriptionValidationResult.statusCode).json({ error: descriptionValidationResult.message });
+    }
     // #endregion
 
     const q: string = `UPDATE TaskStatus SET name = $1, description = $2 WHERE id = ${id} RETURNING *`;
 
     try {
-        const item = await queryPostgres(q, [name, description]); //TODO create a task status with new TaskStatus
-        //const newItem = new TaskStatus(item[0].name, item[0].description, item[0].id, item[0].type_id)
+        const item = await queryPostgres(q, [name, description]);
 
-        return res.status(200).send(item[0]);
+        const newItem = new TaskStatus(item[0].name, item[0].description, item[0].id, item[0].type_id)
+
+        return res.status(200).send(newItem);
     } catch (err) {
-        return formatQuerySingleUnitErrorMessage('task status', loggerName, id, err, res);
+        const { statusCode, message } = formatQuerySingleUnitErrorMessage('task status', loggerName, id, err);
+        return res.status(statusCode).send(message);
     };
 }
 
@@ -96,8 +122,10 @@ export const deleteTaskStatusId = async (req: Request, res: Response) => {
 
     const loggerName = 'TASK STATUS DELETE';
 
-    if (!validateNumberInput('id', id, 'ID for task is invalid', loggerName, res)) { return; };
-
+    const numValidation = validateNumberInput('id', id, 'id is not valid', loggerName);
+    if (numValidation.statusCode !== validationPassStatusCode) {
+        return res.status(numValidation.statusCode).json({ error: numValidation.message });
+    }
     const q = formatDeleteIdfromDatabaseQuery('TaskStatus', id);
 
     try {
@@ -106,6 +134,6 @@ export const deleteTaskStatusId = async (req: Request, res: Response) => {
         return res.status(200).json('deleted');
 
     } catch (err) {
-        return formatQueryDeleteUnitErrorMessage('assignee', loggerName, id, err, res);
-    };
+        const { statusCode, errorMessage, table } = formatQueryDeleteUnitErrorMessage('task status', loggerName, id, err);
+        return res.status(statusCode).send({ error: errorMessage, table: table });    };
 }

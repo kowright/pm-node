@@ -2,7 +2,7 @@ import { Request, Response } from 'express';
 import { formatDeleteIdfromDatabaseQuery, formatSelectAllFromTable, formatSelectIdfromDatabaseQuery } from '../database/queries';
 import { formatMessageToClient, formatMessageToServer, formatQueryAllUnitsErrorMessage, formatQueryDeleteUnitErrorMessage, formatQueryPostUnitErrorMessage, formatQuerySingleUnitErrorMessage } from '../utils/logger';
 import { queryPostgres } from '../database/postgres';
-import { validateDateInput, validateNumberInput, validateStringInput, validateArrayOfNumbersInput, isBooleanStringValidator } from '../utils/validators';
+import { validateDateInput, validateNumberInput, validateStringInput, validateArrayOfNumbersInput, isBooleanStringValidator, validationPassStatusCode } from '../utils/validators';
 import Milestone from '../models/Milestone';
 import Tag from '../models/Tag';
 import Roadmap from '../models/Roadmap';
@@ -49,7 +49,8 @@ export const getMilestones = async (req: Request, res: Response) => {
     try {
         list = await queryPostgres(q);
     } catch (err) {
-        return formatQueryAllUnitsErrorMessage('milestones', loggerName, err, res);
+        const { statusCode, message } = formatQueryAllUnitsErrorMessage('milestones', loggerName, err);
+        return res.status(statusCode).send(message);
     }
 
     if (list.length === 0) {
@@ -87,7 +88,7 @@ export const getMilestones = async (req: Request, res: Response) => {
             return res.status(400).send(formatMessageToClient('Error with query; no results returned'));
         }
 
-        let taskStatus: TaskStatus = new TaskStatus('', '', 0, 0); // placeholder value
+        let taskStatus: TaskStatus = new TaskStatus('', '', 0, 0); 
         try {
             const status = await queryPostgres(taskStatusQ, [ms.id]);
             if (status.length > 0) {
@@ -117,7 +118,10 @@ export const getMilestoneId = async (req: Request, res: Response) => {
         return res.status(400).json({ error: 'Parameters must be in correct format' });
     }
 
-    if (!validateNumberInput('id', id, 'ID for task is invalid', loggerName, res)) { return; };
+    const numValidation = validateNumberInput('id', id, 'id is not valid', loggerName);
+    if (numValidation.statusCode !== validationPassStatusCode) {
+        return res.status(numValidation.statusCode).json({ error: numValidation.message });
+    }
 
     // #region Queries 
 
@@ -201,13 +205,34 @@ export const createMilestone = async (req: Request, res: Response) => {
 
     // #region Validation
 
-    if (!validateStringInput('Name', name, loggerName, res)) { return; }
-    if (!validateStringInput('Description', description, loggerName, res)) { return; }
-    if (!validateDateInput('Date', date, loggerName, res)) { return; }
-    if (!validateNumberInput('task status', taskStatus, 'Task Status is not valid', loggerName, res)) { return; }
-    if (!validateArrayOfNumbersInput('tags', tags, loggerName, res)) { return; }
-    if (!validateArrayOfNumbersInput('roadmaps', roadmaps, loggerName, res)) { return; }
+    const nameValidation = validateStringInput('Name', name, loggerName);
+    if (nameValidation.statusCode !== validationPassStatusCode) {
+        return res.status(nameValidation.statusCode).json({ error: nameValidation.message });
+    }
 
+    const descriptionValidationResult = validateStringInput('Description', description, loggerName);
+    if (descriptionValidationResult.statusCode !== validationPassStatusCode) {
+        return res.status(descriptionValidationResult.statusCode).json({ error: descriptionValidationResult.message });
+    }
+    const dateValidation = validateDateInput('Date', date, loggerName);
+    if (dateValidation.statusCode !== validationPassStatusCode) {
+        return res.status(dateValidation.statusCode).json({ error: dateValidation.message });
+    }
+
+    const taskStatusValidation = validateNumberInput('task status', taskStatus, 'task status is not valid', loggerName);
+    if (taskStatusValidation.statusCode !== validationPassStatusCode) {
+        return res.status(taskStatusValidation.statusCode).json({ error: taskStatusValidation.message });
+    }
+
+    const tagsValidation = validateArrayOfNumbersInput('tags', tags, loggerName);
+    if (tagsValidation.statusCode !== validationPassStatusCode) {
+        return res.status(tagsValidation.statusCode).json({ error: tagsValidation.message });
+    }
+
+    const roadmapsValidation = validateArrayOfNumbersInput('roadmaps', roadmaps, loggerName);
+    if (roadmapsValidation.statusCode !== validationPassStatusCode) {
+        return res.status(roadmapsValidation.statusCode).json({ error: roadmapsValidation.message });
+    }
     // #endregion
 
     // #region Queries 
@@ -234,7 +259,8 @@ export const createMilestone = async (req: Request, res: Response) => {
     try {
         newItem = await queryPostgres(q, [name, description, date, taskStatus]);
     } catch (err) {
-        return formatQueryPostUnitErrorMessage('milestone', loggerName, err, res);
+        const { statusCode, message } = formatQueryPostUnitErrorMessage('milestones', loggerName, err);
+        return res.status(statusCode).send(message);
     }
     const tagArray: number[] = Array.isArray(tags) ? tags : JSON.parse(tags);
 
@@ -281,8 +307,9 @@ export const createMilestone = async (req: Request, res: Response) => {
     try {
         const url = '/api/milestones/' + newItem[0].id + '?roadmaps=true&tags=true';
         fullMilestone = await fetchData(url);
-    } catch (error) {
-        return formatQuerySingleUnitErrorMessage('milestone', loggerName, newItem[0].id, error, res);
+    } catch (err) {
+        const { statusCode, message } = formatQuerySingleUnitErrorMessage('milestone', loggerName, newItem[0].id, err);
+        return res.status(statusCode).send(message);
     }
 
     return res.status(201).json(fullMilestone);
@@ -299,20 +326,45 @@ export const updateMilestoneId = async (req: Request, res: Response) => {
 
     // #region Validation
 
-    if (!validateStringInput('Name', name, loggerName, res)) { return; }
-    if (!validateStringInput('Description', description, loggerName, res)) { return; }
-    if (!validateDateInput('Date', date, loggerName, res)) { return; }
-    if (!validateNumberInput('task status', taskStatus_id, 'Task Status is not valid', loggerName, res)) { return; }
-    if (!validateNumberInput('id', id, 'ID for task is invalid', loggerName, res)) { return; };
+    const nameValidation = validateStringInput('Name', name, loggerName);
+    if (nameValidation.statusCode !== validationPassStatusCode) {
+        return res.status(nameValidation.statusCode).json({ error: nameValidation.message });
+    }
+
+    const descriptionValidationResult = validateStringInput('Description', description, loggerName);
+    if (descriptionValidationResult.statusCode !== validationPassStatusCode) {
+        return res.status(descriptionValidationResult.statusCode).json({ error: descriptionValidationResult.message });
+    }
+    const dateValidation = validateDateInput('Date', date, loggerName);
+    if (dateValidation.statusCode !== validationPassStatusCode) {
+        return res.status(dateValidation.statusCode).json({ error: dateValidation.message });
+    }
+
+    const taskStatusValidation = validateNumberInput('task status', taskStatus_id, 'task status is not valid', loggerName);
+    if (taskStatusValidation.statusCode !== validationPassStatusCode) {
+        return res.status(taskStatusValidation.statusCode).json({ error: taskStatusValidation.message });
+    }
+
+    const tagsValidation = validateArrayOfNumbersInput('tags', tags, loggerName);
+    if (tagsValidation.statusCode !== validationPassStatusCode) {
+        return res.status(tagsValidation.statusCode).json({ error: tagsValidation.message });
+    }
+
     if (tags) {
         const sentTags = tags as Tag[];
         const tagIds = sentTags.map(tag => tag.id);
-        if (!validateArrayOfNumbersInput('tags ids', tagIds, loggerName, res)) { return; }
+        const tagsValidation = validateArrayOfNumbersInput('tags', tagIds, loggerName);
+        if (tagsValidation.statusCode !== validationPassStatusCode) {
+            return res.status(tagsValidation.statusCode).json({ error: tagsValidation.message });
+        }
     }
     if (roadmaps) {
         const sentRoadmaps = roadmaps as Roadmap[];
         const roadmapIds = sentRoadmaps.map(map => map.id);
-        if (!validateArrayOfNumbersInput('roadmap ids', roadmapIds, loggerName, res)) { return; }
+        const roadmapsValidation = validateArrayOfNumbersInput('roadmaps', roadmapIds, loggerName);
+        if (roadmapsValidation.statusCode !== validationPassStatusCode) {
+            return res.status(roadmapsValidation.statusCode).json({ error: roadmapsValidation.message });
+        }
     }
     // #endregion
 
@@ -365,7 +417,8 @@ export const updateMilestoneId = async (req: Request, res: Response) => {
     try {
         item = await queryPostgres(updateMilestoneQ, [name, description, date, putMilestone.taskStatus.id, id]);
     } catch (err) {
-        return formatQuerySingleUnitErrorMessage('milestone', loggerName, id, err, res);
+        const { statusCode, message } = formatQuerySingleUnitErrorMessage('milestone', loggerName, id, err);
+        return res.status(statusCode).send(message);
     }
 
     //tags
@@ -382,7 +435,8 @@ export const updateMilestoneId = async (req: Request, res: Response) => {
             });
         });
     } catch (err) {
-        return formatQueryAllUnitsErrorMessage('tags for milestone', loggerName, err, res);
+        const { statusCode, message } = formatQueryAllUnitsErrorMessage('milestones', loggerName, err);
+        return res.status(statusCode).send(message);
     }
 
     const rowsToDelete = dbTagRows.filter(dbRow =>
@@ -426,7 +480,8 @@ export const updateMilestoneId = async (req: Request, res: Response) => {
             });
         });
     } catch (err) {
-        return formatQueryAllUnitsErrorMessage('roadmaps for milestone', loggerName, err, res);
+        const { statusCode, message } = formatQueryAllUnitsErrorMessage('roadmaps for milestone', loggerName, err);
+        return res.status(statusCode).send(message);
     }
 
 
@@ -466,7 +521,10 @@ export const deleteMilestoneId = async (req: Request, res: Response) => {
 
     const loggerName = 'MILESTONES POST';
 
-    if (!validateNumberInput('id', id, 'ID for task is invalid', loggerName, res)) { return; };
+    const numValidation = validateNumberInput('id', id, 'id is not valid', loggerName);
+    if (numValidation.statusCode !== validationPassStatusCode) {
+        return res.status(numValidation.statusCode).json({ error: numValidation.message });
+    }
 
     const q = formatDeleteIdfromDatabaseQuery('Milestone', id);
 
@@ -475,6 +533,7 @@ export const deleteMilestoneId = async (req: Request, res: Response) => {
         return res.status(200).json('deleted');
        
     } catch (err) {
-        return formatQueryDeleteUnitErrorMessage('milestone', loggerName, id, err, res);
+        const { statusCode, errorMessage, table } = formatQueryDeleteUnitErrorMessage('milestone', loggerName, id, err);
+        return res.status(statusCode).send({ error: errorMessage, table: table });
     };
 }

@@ -2,7 +2,7 @@ import { Request, Response } from 'express';
 import { formatDeleteIdfromDatabaseQuery, formatSelectAllFromTable, formatSelectIdfromDatabaseQuery } from '../database/queries';
 import { formatQueryAllUnitsErrorMessage, formatQueryDeleteUnitErrorMessage, formatQueryPostUnitErrorMessage, formatQuerySingleUnitErrorMessage } from '../utils/logger';
 import { queryPostgres } from '../database/postgres';
-import { validateNumberInput, validateStringInput } from '../utils/validators';
+import { validateNumberInput, validateStringInput, validationPassStatusCode } from '../utils/validators';
 import Roadmap from '../models/Roadmap';
 
 const loggerName = 'ROADMAPS';
@@ -16,7 +16,8 @@ export const getRoadmaps = async (req: Request, res: Response) => {
     try {
         list = await queryPostgres(q);
     } catch (err) {
-        return formatQueryAllUnitsErrorMessage('roadmaps', loggerName, err, res);
+        const { statusCode, message } = formatQueryAllUnitsErrorMessage('roadmaps', loggerName, err);
+        return res.status(statusCode).send(message);
     };
 
     let roadmapList: Roadmap[] = [];
@@ -34,7 +35,10 @@ export const getRoadmapId = async (req: Request, res: Response) => {
 
     const loggerName = 'ROADMAPS ID GET';
 
-    if (!validateNumberInput('id', id, 'ID for task is invalid', loggerName, res)) { return; };
+    const numValidation = validateNumberInput('id', id, 'id is not valid', loggerName);
+    if (numValidation.statusCode !== validationPassStatusCode) {
+        return res.status(numValidation.statusCode).json({ error: numValidation.message });
+    }
 
     const q: string = formatSelectIdfromDatabaseQuery('Roadmap', id);
 
@@ -45,7 +49,8 @@ export const getRoadmapId = async (req: Request, res: Response) => {
 
         return res.status(200).send(getItem);
     } catch (err) {
-        return formatQuerySingleUnitErrorMessage('tag', 'could not find tag', id, err, res);
+        const { statusCode, message } = formatQuerySingleUnitErrorMessage('roadmap', loggerName, id, err);
+        return res.status(statusCode).send(message);
     };
 }
 
@@ -54,8 +59,15 @@ export const createRoadmap = async (req: Request, res: Response) => {
 
     const loggerName = 'ROADMAPS POST';
 
-    if (!validateStringInput('Name', name, loggerName, res)) { return; }
-    if (!validateStringInput('Description', description, loggerName, res)) { return; }
+    const nameValidation = validateStringInput('Name', name, loggerName);
+    if (nameValidation.statusCode !== validationPassStatusCode) {
+        return res.status(nameValidation.statusCode).json({ error: nameValidation.message });
+    }
+
+    const descriptionValidationResult = validateStringInput('Description', description, loggerName);
+    if (descriptionValidationResult.statusCode !== validationPassStatusCode) {
+        return res.status(descriptionValidationResult.statusCode).json({ error: descriptionValidationResult.message });
+    }
 
     const q: string = `
         INSERT INTO Roadmap (name, description)
@@ -71,7 +83,8 @@ export const createRoadmap = async (req: Request, res: Response) => {
         return res.status(201).json(newItem);
 
     } catch (err) {
-        return formatQueryPostUnitErrorMessage('tag', loggerName, err, res);
+        const { statusCode, message } = formatQueryPostUnitErrorMessage('roadmap', loggerName, err);
+        return res.status(statusCode).send(message);
     }
 }
 
@@ -82,9 +95,22 @@ export const updateRoadmapId = async (req: Request, res: Response) => {
 
     const loggerName = 'ROADMAPS PUT';
 
-    if (!validateNumberInput('id', id, 'ID for task is invalid', loggerName, res)) { return; };
-    if (!validateStringInput('Name', name, loggerName, res)) { return; }
-    if (!validateStringInput('Description', description, loggerName, res)) { return; }
+    // #region Validation
+    const numValidation = validateNumberInput('id', id, 'id is not valid', loggerName);
+    if (numValidation.statusCode !== validationPassStatusCode) {
+        return res.status(numValidation.statusCode).json({ error: numValidation.message });
+    }
+
+    const nameValidation = validateStringInput('Name', name, loggerName);
+    if (nameValidation.statusCode !== validationPassStatusCode) {
+        return res.status(nameValidation.statusCode).json({ error: nameValidation.message });
+    }
+
+    const descriptionValidationResult = validateStringInput('Description', description, loggerName);
+    if (descriptionValidationResult.statusCode !== validationPassStatusCode) {
+        return res.status(descriptionValidationResult.statusCode).json({ error: descriptionValidationResult.message });
+    }
+    // #endregion
 
     const q: string = `UPDATE Roadmap SET name = $1, description = $2 WHERE id = ${id} RETURNING *`;
 
@@ -95,7 +121,8 @@ export const updateRoadmapId = async (req: Request, res: Response) => {
 
         return res.status(200).send(newItem);
     } catch (err) {
-        return formatQuerySingleUnitErrorMessage('tag', 'could not update tag', id, err, res);
+        const { statusCode, message } = formatQuerySingleUnitErrorMessage('roadmap', loggerName, id, err);
+        return res.status(statusCode).send(message);
     };
 }
 
@@ -104,7 +131,10 @@ export const deleteRoadmapId = async (req: Request, res: Response) => {
 
     const loggerName = 'ROADMAPS DELETE';
 
-    if (!validateNumberInput('id', id, 'ID for task is invalid', loggerName, res)) { return; };
+    const numValidation = validateNumberInput('id', id, 'id is not valid', loggerName);
+    if (numValidation.statusCode !== validationPassStatusCode) {
+        return res.status(numValidation.statusCode).json({ error: numValidation.message });
+    }
 
     const q = formatDeleteIdfromDatabaseQuery('Roadmap', id);
 
@@ -114,6 +144,7 @@ export const deleteRoadmapId = async (req: Request, res: Response) => {
         return res.status(200).json('deleted');
 
     } catch (err) {
-        return formatQueryDeleteUnitErrorMessage('roadmap', loggerName, id, err, res);
+        const { statusCode, errorMessage, table } = formatQueryDeleteUnitErrorMessage('roadmap', loggerName, id, err);
+        return res.status(statusCode).send({ error: errorMessage, table: table });
     };
 }

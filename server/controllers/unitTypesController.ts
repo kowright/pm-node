@@ -2,7 +2,7 @@ import { Request, Response } from 'express';
 import { formatSelectAllFromTable, formatSelectIdfromDatabaseQuery } from '../database/queries';
 import { queryPostgres } from '../database/postgres';
 import { formatQueryAllUnitsErrorMessage, formatQuerySingleUnitErrorMessage } from '../utils/logger';
-import { validateNumberInput, validateStringInput } from '../utils/validators';
+import { validateNumberInput, validateStringInput, validationPassStatusCode } from '../utils/validators';
 
 const loggerName = 'UNIT TYPE';
 
@@ -16,7 +16,8 @@ export const getUnitTypes = async (req: Request, res: Response) => {
 
         return res.status(200).send(unitTypesList);
     } catch (err) {
-        return formatQueryAllUnitsErrorMessage('unit types', loggerName, err, res);
+        const { statusCode, message } = formatQueryAllUnitsErrorMessage('unit types', loggerName, err);
+        return res.status(statusCode).send(message);
     };
 }
 
@@ -25,7 +26,10 @@ export const getUnitTypesId = async (req: Request, res: Response) => {
 
     const loggerName = 'UNIT TYPES GET';
 
-    if (!validateNumberInput('id', id, 'ID for task is invalid', loggerName, res)) { return; };
+    const numValidation = validateNumberInput('id', id, 'id is not valid', loggerName);
+    if (numValidation.statusCode !== validationPassStatusCode) {
+        return res.status(numValidation.statusCode).json({ error: numValidation.message });
+    }
 
     const q: string = formatSelectIdfromDatabaseQuery('UnitType', id);
 
@@ -34,7 +38,8 @@ export const getUnitTypesId = async (req: Request, res: Response) => {
 
         return res.status(200).send(item[0]);
     } catch (err) {
-        return formatQuerySingleUnitErrorMessage('unit types', 'could not find unit type', id, err, res);
+        const { statusCode, message } = formatQuerySingleUnitErrorMessage('unit type', loggerName, id, err);
+        return res.status(statusCode).send(message);
     };
 }
 
@@ -45,7 +50,10 @@ export const updateUnitTypesId = async (req: Request, res: Response) => {
 
     const loggerName = 'UNIT TYPES GET';
 
-    if (!validateStringInput('Name', name, loggerName, res)) { return; }
+    const nameValidation = validateStringInput('Name', name, loggerName);
+    if (nameValidation.statusCode !== validationPassStatusCode) {
+        return res.status(nameValidation.statusCode).json({ error: nameValidation.message });
+    }
 
     const q: string = `UPDATE UnitType SET name = '${name}' WHERE id = ${id} RETURNING *`;
 
@@ -54,6 +62,7 @@ export const updateUnitTypesId = async (req: Request, res: Response) => {
 
         return res.status(200).send(item[0]);
     } catch (err) {
-        return formatQuerySingleUnitErrorMessage('unit type', 'could not update unit type', id, err, res);
+        const { statusCode, message } = formatQuerySingleUnitErrorMessage('assignee', loggerName, id, err);
+        return res.status(statusCode).send(message);
     };
 }
