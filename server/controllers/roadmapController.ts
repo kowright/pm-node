@@ -16,7 +16,7 @@ export const getRoadmaps = async (req: Request, res: Response) => {
     try {
         list = await queryPostgres(q);
     } catch (err) {
-        formatQueryAllUnitsErrorMessage('roadmaps', loggerName, err, res);
+        return formatQueryAllUnitsErrorMessage('roadmaps', loggerName, err, res);
     };
 
     let roadmapList: Roadmap[] = [];
@@ -26,7 +26,7 @@ export const getRoadmaps = async (req: Request, res: Response) => {
             new Roadmap(map.name, map.description, map.id, map.type_id));
     });
 
-    res.status(200).send(roadmapList);
+    return res.status(200).send(roadmapList);
 }
 
 export const getRoadmapId = async (req: Request, res: Response) => {
@@ -43,9 +43,9 @@ export const getRoadmapId = async (req: Request, res: Response) => {
 
         const getItem = new Roadmap(item[0].name, item[0].description, item[0].id, item[0].type_id);
 
-        res.status(200).send(getItem);
+        return res.status(200).send(getItem);
     } catch (err) {
-        formatQuerySingleUnitErrorMessage('tag', 'could not find tag', id, err, res);
+        return formatQuerySingleUnitErrorMessage('tag', 'could not find tag', id, err, res);
     };
 }
 
@@ -68,10 +68,10 @@ export const createRoadmap = async (req: Request, res: Response) => {
 
         const newItem = new Roadmap(item[0].name, item[0].description, item[0].id, item[0].type_id);
 
-        res.status(201).json(newItem);
+        return res.status(201).json(newItem);
 
     } catch (err) {
-        formatQueryPostUnitErrorMessage('tag', loggerName, err, res);
+        return formatQueryPostUnitErrorMessage('tag', loggerName, err, res);
     }
 }
 
@@ -93,9 +93,9 @@ export const updateRoadmapId = async (req: Request, res: Response) => {
 
         const newItem = new Roadmap(item[0].name, item[0].description, item[0].id, item[0].type_id);
 
-        res.status(200).send(newItem);
+        return res.status(200).send(newItem);
     } catch (err) {
-        formatQuerySingleUnitErrorMessage('tag', 'could not update tag', id, err, res);
+        return formatQuerySingleUnitErrorMessage('tag', 'could not update tag', id, err, res);
     };
 }
 
@@ -111,9 +111,9 @@ export const deleteRoadmapId = async (req: Request, res: Response) => {
     try {
         await queryPostgres(q);
 
-        res.status(200).json('deleted');
+        return res.status(200).json('deleted');
 
     } catch (err) {
-        formatQueryDeleteUnitErrorMessage('roadmap', loggerName, id, err, res);
+        return formatQueryDeleteUnitErrorMessage('roadmap', loggerName, id, err, res);
     };
 }

@@ -49,12 +49,12 @@ export const getMilestones = async (req: Request, res: Response) => {
     try {
         list = await queryPostgres(q);
     } catch (err) {
-        formatQueryAllUnitsErrorMessage('milestones', loggerName, err, res);
+        return formatQueryAllUnitsErrorMessage('milestones', loggerName, err, res);
     }
 
     if (list.length === 0) {
         formatMessageToServer(loggerName, "couldn't query for all milestones");
-        res.status(400).send(formatMessageToClient('Error with query; no results returned'));
+        return res.status(400).send(formatMessageToClient('Error with query; no results returned'));
     };
 
     let milestoneList: Milestone[] = [];
@@ -71,7 +71,7 @@ export const getMilestones = async (req: Request, res: Response) => {
             };
         } catch (err) {
             formatMessageToServer(loggerName, "couldn't execute roadmapQ", err);
-            res.status(400).send(formatMessageToClient('Error with query; no results returned'));
+            return res.status(400).send(formatMessageToClient('Error with query; no results returned'));
         }
 
         const tagArray: Tag[] = [];
@@ -84,7 +84,7 @@ export const getMilestones = async (req: Request, res: Response) => {
             };
         } catch (err) {
             formatMessageToServer(loggerName, "couldn't execute tagQ", err);
-            res.status(400).send(formatMessageToClient('Error with query; no results returned'));
+            return res.status(400).send(formatMessageToClient('Error with query; no results returned'));
         }
 
         let taskStatus: TaskStatus = new TaskStatus('', '', 0, 0); // placeholder value
@@ -96,14 +96,14 @@ export const getMilestones = async (req: Request, res: Response) => {
             }
         } catch (err) {
             formatMessageToServer(loggerName, "couldn't fetch a task status for a milestone from postgres", err);
-            res.status(404).json(formatMessageToClient('Error with query', err));
+            return res.status(404).json(formatMessageToClient('Error with query', err));
         }
 
         milestoneList.push(new Milestone(ms.name, ms.description, roadmapArray, tagArray, ms.date, taskStatus,
             ms.id, ms.type_id));
     }));
 
-    res.status(200).send(milestoneList);
+    return res.status(200).send(milestoneList);
 }
 
 export const getMilestoneId = async (req: Request, res: Response) => {
@@ -148,7 +148,7 @@ export const getMilestoneId = async (req: Request, res: Response) => {
         queriedItem = await queryPostgres(q);
     } catch (err) {
         formatMessageToServer(loggerName, "couldn't query for this milestone id " + id, err);
-        res.status(400).send(formatMessageToClient('Error with query; no results returned'));
+        return res.status(400).send(formatMessageToClient('Error with query; no results returned'));
     }
     const item = queriedItem[0];
 
@@ -162,7 +162,7 @@ export const getMilestoneId = async (req: Request, res: Response) => {
         }
     } catch (err) {
         formatMessageToServer(loggerName, "couldn't execute roadmapQ", err);
-        res.status(400).send(formatMessageToClient('Error with query; no results returned'));
+        return res.status(400).send(formatMessageToClient('Error with query; no results returned'));
     }
 
     const tagArray: Tag[] = [];
@@ -175,7 +175,7 @@ export const getMilestoneId = async (req: Request, res: Response) => {
         }
     } catch (err) {
         formatMessageToServer(loggerName, "couldn't execute tagQ", err);
-        res.status(400).send(formatMessageToClient('Error with query; no results returned'));
+        return res.status(400).send(formatMessageToClient('Error with query; no results returned'));
     }
 
     let taskStatus: TaskStatus = new TaskStatus('', '', 0, 0);
@@ -185,7 +185,7 @@ export const getMilestoneId = async (req: Request, res: Response) => {
         taskStatus = new TaskStatus(statusObject.name, statusObject.description, statusObject.id, statusObject.type_id);
     } catch (err) {
         formatMessageToServer(loggerName, "couldn't fetch a task status for a milestone from postgres", err);
-        res.status(404).json(formatMessageToClient('Error with query', err));
+        return res.status(404).json(formatMessageToClient('Error with query', err));
     }
 
     const newItem = new Milestone(item.name, item.description, roadmapArray, tagArray,
@@ -234,7 +234,7 @@ export const createMilestone = async (req: Request, res: Response) => {
     try {
         newItem = await queryPostgres(q, [name, description, date, taskStatus]);
     } catch (err) {
-        formatQueryPostUnitErrorMessage('milestone', loggerName, err, res);
+        return formatQueryPostUnitErrorMessage('milestone', loggerName, err, res);
     }
     const tagArray: number[] = Array.isArray(tags) ? tags : JSON.parse(tags);
 
@@ -282,10 +282,10 @@ export const createMilestone = async (req: Request, res: Response) => {
         const url = '/api/milestones/' + newItem[0].id + '?roadmaps=true&tags=true';
         fullMilestone = await fetchData(url);
     } catch (error) {
-        formatQuerySingleUnitErrorMessage('milestone', loggerName, newItem[0].id, error, res);
+        return formatQuerySingleUnitErrorMessage('milestone', loggerName, newItem[0].id, error, res);
     }
 
-    res.status(201).json(fullMilestone);
+    return res.status(201).json(fullMilestone);
 }
 
 export const updateMilestoneId = async (req: Request, res: Response) => {
@@ -365,7 +365,7 @@ export const updateMilestoneId = async (req: Request, res: Response) => {
     try {
         item = await queryPostgres(updateMilestoneQ, [name, description, date, putMilestone.taskStatus.id, id]);
     } catch (err) {
-        formatQuerySingleUnitErrorMessage('milestone', loggerName, id, err, res);
+        return formatQuerySingleUnitErrorMessage('milestone', loggerName, id, err, res);
     }
 
     //tags
@@ -382,7 +382,7 @@ export const updateMilestoneId = async (req: Request, res: Response) => {
             });
         });
     } catch (err) {
-        formatQueryAllUnitsErrorMessage('tags for milestone', loggerName, err, res);
+        return formatQueryAllUnitsErrorMessage('tags for milestone', loggerName, err, res);
     }
 
     const rowsToDelete = dbTagRows.filter(dbRow =>
@@ -398,7 +398,7 @@ export const updateMilestoneId = async (req: Request, res: Response) => {
             await queryPostgres(deleteRowFromMilestoneTagQ, [row.milestone_id, row.tag_id]);
         } catch (err) {
             formatMessageToServer(loggerName, "couldn't delete tag rows for milestone " + id, err);
-            res.status(400).send(formatMessageToClient('Error with query; no results returned', err));
+            return res.status(400).send(formatMessageToClient('Error with query; no results returned', err));
         }
     }));
 
@@ -408,7 +408,7 @@ export const updateMilestoneId = async (req: Request, res: Response) => {
 
         } catch (err) {
             formatMessageToServer(loggerName, "couldn't add tag rows for milestone " + id, err);
-            res.status(400).send(formatMessageToClient('Error with query; no results returned', err));
+            return res.status(400).send(formatMessageToClient('Error with query; no results returned', err));
         }
     }));
 
@@ -426,7 +426,7 @@ export const updateMilestoneId = async (req: Request, res: Response) => {
             });
         });
     } catch (err) {
-        formatQueryAllUnitsErrorMessage('roadmaps for milestone', loggerName, err, res);
+        return formatQueryAllUnitsErrorMessage('roadmaps for milestone', loggerName, err, res);
     }
 
 
@@ -443,7 +443,7 @@ export const updateMilestoneId = async (req: Request, res: Response) => {
 
         } catch (err) {
             formatMessageToServer(loggerName, "couldn't delete roadmap rows for milestone " + id, err);
-            res.status(400).send(formatMessageToClient('Error with query; no results returned', err));
+            return res.status(400).send(formatMessageToClient('Error with query; no results returned', err));
         }
     }));
 
@@ -453,12 +453,12 @@ export const updateMilestoneId = async (req: Request, res: Response) => {
 
         } catch (err) {
             formatMessageToServer(loggerName, "couldn't add roadmap rows for milestone " + id, err);
-            res.status(400).send(formatMessageToClient('Error with query; no results returned', err));
+            return res.status(400).send(formatMessageToClient('Error with query; no results returned', err));
         }
     }));
 
 
-    res.status(201).json(putMilestone);
+    return res.status(201).json(putMilestone);
 }
 
 export const deleteMilestoneId = async (req: Request, res: Response) => {
@@ -471,14 +471,10 @@ export const deleteMilestoneId = async (req: Request, res: Response) => {
     const q = formatDeleteIdfromDatabaseQuery('Milestone', id);
 
     try {
-        const result = await queryPostgres(q);
-
-        if (result.length === 0) {
-            res.status(200).json('deleted');
-        } else {
-            res.status(404).json(formatMessageToClient('Milestone not found- does not exist in records'));
-        }
+        await queryPostgres(q);
+        return res.status(200).json('deleted');
+       
     } catch (err) {
-        formatQueryDeleteUnitErrorMessage('milestone', loggerName, id, err, res);
+        return formatQueryDeleteUnitErrorMessage('milestone', loggerName, id, err, res);
     };
 }

@@ -14,9 +14,9 @@ export const getUnitTypes = async (req: Request, res: Response) => {
     try {
         const unitTypesList = await queryPostgres(q);
 
-        res.status(200).send(unitTypesList);
+        return res.status(200).send(unitTypesList);
     } catch (err) {
-        formatQueryAllUnitsErrorMessage('unit types', loggerName, err, res);
+        return formatQueryAllUnitsErrorMessage('unit types', loggerName, err, res);
     };
 }
 
@@ -32,9 +32,9 @@ export const getUnitTypesId = async (req: Request, res: Response) => {
     try {
         const item = await queryPostgres(q);
 
-        res.status(200).send(item[0]);
+        return res.status(200).send(item[0]);
     } catch (err) {
-        formatQuerySingleUnitErrorMessage('unit types', 'could not find unit type', id, err, res);
+        return formatQuerySingleUnitErrorMessage('unit types', 'could not find unit type', id, err, res);
     };
 }
 
@@ -52,8 +52,8 @@ export const updateUnitTypesId = async (req: Request, res: Response) => {
     try {
         const item = await queryPostgres(q);
 
-        res.status(200).send(item[0]);
+        return res.status(200).send(item[0]);
     } catch (err) {
-        formatQuerySingleUnitErrorMessage('unit type', 'could not update unit type', id, err, res);
+        return formatQuerySingleUnitErrorMessage('unit type', 'could not update unit type', id, err, res);
     };
 }

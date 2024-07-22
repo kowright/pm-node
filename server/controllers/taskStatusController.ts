@@ -15,9 +15,9 @@ export const getTaskStatuses = async (req: Request, res: Response) => {
     try {
         const list = await queryPostgres(q);
 
-        res.status(200).send(list);
+        return res.status(200).send(list);
     } catch (err) {
-        formatQueryAllUnitsErrorMessage('task status', loggerName, err, res);
+        return formatQueryAllUnitsErrorMessage('task status', loggerName, err, res);
     };
 }
 
@@ -34,9 +34,9 @@ export const getTaskStatusId = async (req: Request, res: Response) => {
     try {
         const item = await queryPostgres(q); //TODO change to create a task status 
 
-        res.status(200).send(item[0]);
+        return res.status(200).send(item[0]);
     } catch (err) {
-        formatQuerySingleUnitErrorMessage('task status', loggerName, id, err, res);
+        return formatQuerySingleUnitErrorMessage('task status', loggerName, id, err, res);
     };
 }
 
@@ -59,10 +59,10 @@ export const createTaskStatus = async (req: Request, res: Response) => {
 
         const newItem = new TaskStatus(item[0].name, item[0].description, item[0].id, item[0].type_id)
 
-        res.status(201).json(newItem);
+        return res.status(201).json(newItem);
 
     } catch (err) {
-        formatQueryPostUnitErrorMessage('assignee', loggerName, err, res);
+        return formatQueryPostUnitErrorMessage('assignee', loggerName, err, res);
     }
 }
 
@@ -85,9 +85,9 @@ export const updateTaskStatusId = async (req: Request, res: Response) => {
         const item = await queryPostgres(q, [name, description]); //TODO create a task status with new TaskStatus
         //const newItem = new TaskStatus(item[0].name, item[0].description, item[0].id, item[0].type_id)
 
-        res.status(200).send(item[0]);
+        return res.status(200).send(item[0]);
     } catch (err) {
-        formatQuerySingleUnitErrorMessage('task status', loggerName, id, err, res);
+        return formatQuerySingleUnitErrorMessage('task status', loggerName, id, err, res);
     };
 }
 
@@ -103,9 +103,9 @@ export const deleteTaskStatusId = async (req: Request, res: Response) => {
     try {
         await queryPostgres(q);
 
-        res.status(200).json('deleted');
+        return res.status(200).json('deleted');
 
     } catch (err) {
-        formatQueryDeleteUnitErrorMessage('assignee', loggerName, id, err, res);
+        return formatQueryDeleteUnitErrorMessage('assignee', loggerName, id, err, res);
     };
 }

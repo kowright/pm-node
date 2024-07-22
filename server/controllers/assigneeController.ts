@@ -20,7 +20,7 @@ export const getAssignees = async (req: Request, res: Response) => {
     try {
         list = await queryPostgres(q);
     } catch (err) {
-        formatQueryAllUnitsErrorMessage('assignes', loggerName, err, res);
+       return formatQueryAllUnitsErrorMessage('assignes', loggerName, err, res);
     }
 
     const newList: Assignee[] = [];
@@ -28,7 +28,7 @@ export const getAssignees = async (req: Request, res: Response) => {
         newList.push(new Assignee(a.name, a.description, a.id, a.type_id))
     });
 
-    res.status(200).send(newList);
+    return res.status(200).send(newList);
 }
 
 export const getAssigneeId = async (req: Request, res: Response) => {
@@ -45,9 +45,9 @@ export const getAssigneeId = async (req: Request, res: Response) => {
 
         const newItem = new Assignee(item[0].name, item[0].description, item[0].id, item[0].type_id);
 
-        res.status(200).send(newItem);
+        return res.status(200).send(newItem);
     } catch (err) {
-        formatQuerySingleUnitErrorMessage('assignee', loggerName, id, err, res);
+        return formatQuerySingleUnitErrorMessage('assignee', loggerName, id, err, res);
     };
 }
 
@@ -70,10 +70,10 @@ export const createAssignee = async (req: Request, res: Response) => {
 
         const newItem = new Assignee(item[0].name, item[0].description, item[0].id, item[0].type_id);
 
-        res.status(201).json(newItem);
+        return res.status(201).json(newItem);
 
     } catch (err) {
-        formatQueryPostUnitErrorMessage('assignee', loggerName, err, res);
+        return formatQueryPostUnitErrorMessage('assignee', loggerName, err, res);
     }
 }
 
@@ -96,9 +96,9 @@ export const updateAssigneeId = async (req: Request, res: Response) => {
 
         const updatedItem = new Assignee(item[0].name, item[0].description, item[0].id, item[0].type_id);
 
-        res.status(200).send(updatedItem);
+        return res.status(200).send(updatedItem);
     } catch (err) {
-        formatQuerySingleUnitErrorMessage('assignee', loggerName, id, err, res);
+        return formatQuerySingleUnitErrorMessage('assignee', loggerName, id, err, res);
     };
 }
 
@@ -114,8 +114,8 @@ export const deleteAssigneeId = async (req: Request, res: Response) => {
     try {
         await queryPostgres(q);
 
-        res.status(200).json('deleted');
+        return res.status(200).json('deleted');
     } catch (err) {
-        formatQueryDeleteUnitErrorMessage('assignee', loggerName, id, err, res);
+       return formatQueryDeleteUnitErrorMessage('assignee', loggerName, id, err, res);
     };
 }

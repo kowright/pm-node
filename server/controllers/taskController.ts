@@ -72,7 +72,7 @@ export const getTasks = async (req: Request, res: Response) => {
         tasks = await queryPostgres(getEverything);
     } catch (err) {
         formatMessageToServer(loggerName, "nothing came back for task from postgres", err);
-        res.status(400).send(formatMessageToClient('Error with query; no results returned', err));
+        return res.status(400).send(formatMessageToClient('Error with query; no results returned', err));
     }
 
     let taskList: Task[] = [];
@@ -90,7 +90,7 @@ export const getTasks = async (req: Request, res: Response) => {
             };
         } catch (err) {
             formatMessageToServer(loggerName, "nothing came back for roadmapQ from postgres", err);
-            res.status(400).send(formatMessageToClient('Error with query; no results returned', err));
+            return res.status(400).send(formatMessageToClient('Error with query; no results returned', err));
         }
 
         const tagArray: Tag[] = [];
@@ -103,7 +103,7 @@ export const getTasks = async (req: Request, res: Response) => {
             };
         } catch (err) {
             formatMessageToServer(loggerName, "nothing came back for tagQ from postgres", err);
-            res.status(400).send(formatMessageToClient('Error with query; no results returned', err));
+            return res.status(400).send(formatMessageToClient('Error with query; no results returned', err));
         }
 
         const assignee = new Assignee(t.assignee_name, t.assignee_description, t.assignee_id, t.assignee_type_id);
@@ -113,7 +113,7 @@ export const getTasks = async (req: Request, res: Response) => {
             t.start_date, t.end_date, taskStatus, t.task_id, t.type_id));
     }));
 
-    res.status(200).send(taskList);
+    return res.status(200).send(taskList);
 }
 
 export const getTaskId = async (req: Request, res: Response) => {
@@ -178,7 +178,7 @@ export const getTaskId = async (req: Request, res: Response) => {
         tasks = await queryPostgres(getEverything, [id]);
     } catch (err) {
         formatMessageToServer(loggerName, "nothing came back from postgres for task", err);
-        res.status(400).send(formatMessageToClient('Error with query; no results returned', err));
+        return res.status(400).send(formatMessageToClient('Error with query; no results returned', err));
     }
 
     const t = tasks[0];
@@ -194,7 +194,7 @@ export const getTaskId = async (req: Request, res: Response) => {
         };
     } catch (err) {
         formatMessageToServer(loggerName, "nothing came back from roadmapQ postgres for task", err);
-        res.status(400).send(formatMessageToClient('Error with query; no results returned', err));
+        return res.status(400).send(formatMessageToClient('Error with query; no results returned', err));
     }
 
     const tagArray: Tag[] = [];
@@ -207,7 +207,7 @@ export const getTaskId = async (req: Request, res: Response) => {
         };
     } catch (err) {
         formatMessageToServer(loggerName, "nothing came back from tagQ postgres for task", err);
-        res.status(400).send(formatMessageToClient('Error with query; no results returned', err));
+        return res.status(400).send(formatMessageToClient('Error with query; no results returned', err));
     }
 
     const assignee = new Assignee(t.assignee_name, t.assignee_description, t.assignee_id, t.assignee_type_id);
@@ -215,7 +215,7 @@ export const getTaskId = async (req: Request, res: Response) => {
     const task = new Task(t.task_name, t.task_description, roadmapArray, tagArray, assignee, t.start_date,
         t.end_date, taskStatus, t.task_id, t.type_id);
 
-    res.status(200).send(task);
+    return res.status(200).send(task);
 }
 
 export const createTask = async (req: Request, res: Response) => {
@@ -299,7 +299,7 @@ export const createTask = async (req: Request, res: Response) => {
     try {
         newItem = await queryPostgres(q, [name, description, startDate, endDate, assignee, taskStatus]);
     } catch (err) {
-        formatQueryPostUnitErrorMessage('task', loggerName, err, res);
+        return formatQueryPostUnitErrorMessage('task', loggerName, err, res);
     }
 
     // let clientMessage: string = 'Task successfully made.\n';
@@ -358,14 +358,14 @@ export const createTask = async (req: Request, res: Response) => {
             tagGetArray.push(new Tag(tag.name, tag.description, tag.id, tag.type_id));
         });
     } catch (err) {
-        formatQueryAllUnitsErrorMessage('tags for task', loggerName, err, res);
+        return formatQueryAllUnitsErrorMessage('tags for task', loggerName, err, res);
     }
 
     let fullTaskObj: any;
     try {
         fullTaskObj = await queryPostgres(getEverything, [t.id]);
     } catch (err) {
-        formatQuerySingleUnitErrorMessage('task', loggerName, t.id, err, res);
+        return formatQuerySingleUnitErrorMessage('task', loggerName, t.id, err, res);
     }
 
     const fullTask = fullTaskObj[0];
@@ -376,7 +376,7 @@ export const createTask = async (req: Request, res: Response) => {
     const task = new Task(fullTask.task_name, fullTask.task_description, roadmapGetArray, tagGetArray,
         as, fullTask.start_date, fullTask.end_date, ts, fullTask.task_id, fullTask.type_id);
 
-    res.status(201).json(task);
+    return res.status(201).json(task);
 }
 
 export const updateTaskId = async (req: Request, res: Response) => {
@@ -387,14 +387,7 @@ export const updateTaskId = async (req: Request, res: Response) => {
     const { name, description, assignee, startDate, endDate, tags, roadmaps } = req.body;
     const putTask: Task = req.body;
     console.log("assignee ", assignee)
-    const isNumValidator = (id: number) => {
-        if (isNaN(id) || id < 0) {
-            return false;
-        }
-        return true;
-    };
 
-    console.log("num valid" + isNumValidator(0));
     // #region Validation
     if (!validateStringInput('Name', name, loggerName, res)) { return; }
     if (!validateStringInput('Description', description, loggerName, res)) { return; }
@@ -520,7 +513,7 @@ const deleteRowFromTaskRoadmapQ = `
     try {
         dbRoadmapRows = await queryPostgres(getAllRowsFromTaskRoadmapByTaskIdQ, [id]);
     } catch (err) {
-        formatQueryAllUnitsErrorMessage('roadmaps for task', loggerName, err, res);
+        return formatQueryAllUnitsErrorMessage('roadmaps for task', loggerName, err, res);
     }
     let roadmapArrayFromParams: number[] = Array.isArray(roadmaps) ? roadmaps : JSON.parse(roadmaps);
     roadmapArrayFromParams = putTask.roadmaps.map(map => map.id);
@@ -571,8 +564,8 @@ export const deleteTaskId = async (req: Request, res: Response) => {
 
     try {
         await queryPostgres(q);
-        res.status(200).json('deleted');
+        return res.status(200).json('deleted');
     } catch (err) {
-        formatQueryDeleteUnitErrorMessage('task', loggerName, id, err, res);
+        return formatQueryDeleteUnitErrorMessage('task', loggerName, id, err, res);
     };
 }
