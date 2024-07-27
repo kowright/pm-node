@@ -16,12 +16,12 @@ export const getTags = async (req: Request, res: Response) => {
     try {
         tagList = await queryPostgres(q);
   
-    let newList: Tag[] = [];
-    tagList.map(tag => {
-        newList.push(new Tag(
-            tag.name, tag.description, tag.id, tag.type_id
-        ))
-    });
+        let newList: Tag[] = [];
+        tagList.map(tag => {
+            newList.push(new Tag(
+                tag.name, tag.description, tag.id, tag.type_id
+            ))
+        });
 
         return res.status(200).send(newList);
     } catch (err) {

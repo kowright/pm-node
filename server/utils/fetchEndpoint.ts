@@ -1,4 +1,5 @@
 import axios from 'axios';
+const multer = require('multer');
 
 export const fetchData = async (suffix: string) => {
     const url = 'http://localhost:3001' + suffix;
@@ -17,3 +18,6 @@ export const fetchData = async (suffix: string) => {
         console.error('Error fetching data:', error);
     }
 };
+
+const storage = multer.memoryStorage();
+const upload = multer({ storage: storage }); 

@@ -13,9 +13,15 @@ export const getTaskStatuses = async (req: Request, res: Response) => {
 
     //TODO switch to creating task statuses with new TaskStatus
     try {
-        const list = await queryPostgres(q);
+        const list: any[] = await queryPostgres(q);
 
-        return res.status(200).send(list);
+        let newList: TaskStatus[] = [];
+        list.map(ts => {
+            newList.push(new TaskStatus(
+                ts.name, ts.description, ts.id, ts.type_id
+            ))
+        });
+        return res.status(200).send(newList);
     } catch (err) {
         const { statusCode, message } = formatQueryAllUnitsErrorMessage('task statuses', loggerName, err);
         return res.status(statusCode).send(message);    };
@@ -97,7 +103,7 @@ export const updateTaskStatusId = async (req: Request, res: Response) => {
         return res.status(nameValidation.statusCode).json({ error: nameValidation.message });
     }
 
-    const descriptionValidationResult = validateStringInput('Description', description, loggerName);
+    const descriptionValidationResult = validateStringInput('Description', description, loggerName, true);
     if (descriptionValidationResult.statusCode !== validationPassStatusCode) {
         return res.status(descriptionValidationResult.statusCode).json({ error: descriptionValidationResult.message });
     }

@@ -39,30 +39,34 @@ export const getTasks = async (req: Request, res: Response) => {
     WHERE tt.task_id = $1;`;
 
     const getEverything = `
-    SELECT
-        t.id AS task_id,
-        t.name AS task_name,
-        t.description AS task_description,
-        t.start_date,
-        t.end_date,
-        a.id AS assignee_id,
-        a.name AS assignee_name,
-        a.description AS assignee_description,
-        a.type_id AS assignee_type_id,
-        ts.id AS task_status_id,
-        ts.name AS task_status_name,
-        ts.description AS task_status_description,
-        ts.type_id AS task_status_type_id,
-        ty.id AS type_id,
-        ty.name AS type_name
-    FROM
-        Task t
-    JOIN
-        Assignee a ON t.assignee_id = a.id
-    JOIN
-        TaskStatus ts ON t.status_id = ts.id
-    JOIN
-        UnitType ty ON t.type_id = ty.id;
+SELECT
+    t.id AS task_id,
+    t.name AS task_name,
+    t.description AS task_description,
+    t.start_date,
+    t.end_date,
+    a.id AS assignee_id,
+    a.name AS assignee_name,
+    a.description AS assignee_description,
+    a.type_id AS assignee_type_id,
+    ts.id AS task_status_id,
+    ts.name AS task_status_name,
+    ts.description AS task_status_description,
+    ts.type_id AS task_status_type_id,
+    ty.id AS type_id,
+    ty.name AS type_name,
+    ai.image_id AS assignee_image_id -- Add this line to include the image_id
+FROM
+    Task t
+JOIN
+    Assignee a ON t.assignee_id = a.id
+LEFT JOIN
+    AssigneeImages ai ON a.id = ai.assignee_id -- Use LEFT JOIN to include assignees without images
+JOIN
+    TaskStatus ts ON t.status_id = ts.id
+JOIN
+    UnitType ty ON t.type_id = ty.id;
+
     `;
 
     // #endregion
@@ -106,7 +110,7 @@ export const getTasks = async (req: Request, res: Response) => {
             return res.status(400).send(formatMessageToClient('Error with query; no results returned', err));
         }
 
-        const assignee = new Assignee(t.assignee_name, t.assignee_description, t.assignee_id, t.assignee_type_id);
+        const assignee = new Assignee(t.assignee_name, t.assignee_description, t.assignee_id, t.assignee_type_id, t.assignee_image_id);
         const taskStatus = new TaskStatus(t.task_status_name, t.task_status_description, t.task_status_id, t.task_status_type_id);
 
         taskList.push(new Task(t.task_name, t.task_description, roadmapArray, tagArray, assignee,
@@ -143,31 +147,34 @@ export const getTaskId = async (req: Request, res: Response) => {
     WHERE tt.task_id = $1;`;
 
     const getEverything = `
-    SELECT
-        t.id AS task_id,
-        t.name AS task_name,
-        t.description AS task_description,
-        t.start_date,
-        t.end_date,
-        a.id AS assignee_id,
-        a.name AS assignee_name,
-        a.description AS assignee_description,
-        a.type_id AS assignee_type_id,
-        ts.id AS task_status_id,
-        ts.name AS task_status_name,
-        ts.description AS task_status_description,
-        ts.type_id AS task_status_type_id,
-        ty.id AS type_id,
-        ty.name AS type_name
-    FROM
-        Task t
-    JOIN
-        Assignee a ON t.assignee_id = a.id
-    JOIN
-        TaskStatus ts ON t.status_id = ts.id
-    JOIN
-        UnitType ty ON t.type_id = ty.id
-        WHERE
+ SELECT
+    t.id AS task_id,
+    t.name AS task_name,
+    t.description AS task_description,
+    t.start_date,
+    t.end_date,
+    a.id AS assignee_id,
+    a.name AS assignee_name,
+    a.description AS assignee_description,
+    a.type_id AS assignee_type_id,
+    ts.id AS task_status_id,
+    ts.name AS task_status_name,
+    ts.description AS task_status_description,
+    ts.type_id AS task_status_type_id,
+    ty.id AS type_id,
+    ty.name AS type_name,
+    ai.image_id AS assignee_image_id -- Add this line to include the image_id
+FROM
+    Task t
+JOIN
+    Assignee a ON t.assignee_id = a.id
+LEFT JOIN
+    AssigneeImages ai ON a.id = ai.assignee_id -- Use LEFT JOIN to include assignees without images
+JOIN
+    TaskStatus ts ON t.status_id = ts.id
+JOIN
+    UnitType ty ON t.type_id = ty.id
+WHERE
     t.id = $1;
     `;
 
@@ -210,7 +217,7 @@ export const getTaskId = async (req: Request, res: Response) => {
         return res.status(400).send(formatMessageToClient('Error with query; no results returned', err));
     }
 
-    const assignee = new Assignee(t.assignee_name, t.assignee_description, t.assignee_id, t.assignee_type_id);
+    const assignee = new Assignee(t.assignee_name, t.assignee_description, t.assignee_id, t.assignee_type_id, t.assignee_image_id);
     const taskStatus = new TaskStatus(t.task_status_name, t.task_status_description, t.task_status_id, t.task_status_type_id);
     const task = new Task(t.task_name, t.task_description, roadmapArray, tagArray, assignee, t.start_date,
         t.end_date, taskStatus, t.task_id, t.type_id);
@@ -291,31 +298,34 @@ export const createTask = async (req: Request, res: Response) => {
     WHERE tt.task_id = $1;`;
 
     const getEverything = `
-    SELECT
-        t.id AS task_id,
-        t.name AS task_name,
-        t.description AS task_description,
-        t.start_date,
-        t.end_date,
-        a.id AS assignee_id,
-        a.name AS assignee_name,
-        a.description AS assignee_description,
-        a.type_id AS assignee_type_id,
-        ts.id AS task_status_id,
-        ts.name AS task_status_name,
-        ts.description AS task_status_description,
-        ts.type_id AS task_status_type_id,
-        ty.id AS type_id,
-        ty.name AS type_name
-    FROM
-        Task t
-    JOIN
-        Assignee a ON t.assignee_id = a.id
-    JOIN
-        TaskStatus ts ON t.status_id = ts.id
-    JOIN
-        UnitType ty ON t.type_id = ty.id
-        WHERE
+SELECT
+    t.id AS task_id,
+    t.name AS task_name,
+    t.description AS task_description,
+    t.start_date,
+    t.end_date,
+    a.id AS assignee_id,
+    a.name AS assignee_name,
+    a.description AS assignee_description,
+    a.type_id AS assignee_type_id,
+    ts.id AS task_status_id,
+    ts.name AS task_status_name,
+    ts.description AS task_status_description,
+    ts.type_id AS task_status_type_id,
+    ty.id AS type_id,
+    ty.name AS type_name,
+    ai.image_id AS assignee_image_id -- Add this line to include the image_id
+FROM
+    Task t
+JOIN
+    Assignee a ON t.assignee_id = a.id
+LEFT JOIN
+    AssigneeImages ai ON a.id = ai.assignee_id -- Use LEFT JOIN to include assignees without images
+JOIN
+    TaskStatus ts ON t.status_id = ts.id
+JOIN
+    UnitType ty ON t.type_id = ty.id
+WHERE
     t.id = $1;
     `;
 
@@ -401,7 +411,7 @@ export const createTask = async (req: Request, res: Response) => {
 
     const fullTask = fullTaskObj[0];
 
-    const as = new Assignee(fullTask.assignee_name, fullTask.assignee_description, fullTask.assignee_id, fullTask.assignee_type_id);
+    const as = new Assignee(fullTask.assignee_name, fullTask.assignee_description, fullTask.assignee_id, fullTask.assignee_type_id, fullTask.assignee_image_id);
     const ts = new TaskStatus(fullTask.task_status_name, fullTask.task_status_description, fullTask.task_status_id, fullTask.task_status_type_id);
 
     const task = new Task(fullTask.task_name, fullTask.task_description, roadmapGetArray, tagGetArray,
@@ -414,7 +424,6 @@ export const updateTaskId = async (req: Request, res: Response) => {
     const id = parseInt(req.params.id);
 
     const loggerName = loggerUnit + ' PUT';
-
     const { name, description, assignee, startDate, endDate, tags, roadmaps } = req.body;
     const putTask: Task = req.body;
 
@@ -445,14 +454,12 @@ export const updateTaskId = async (req: Request, res: Response) => {
         return res.status(taskStatusValidation.statusCode).json({ error: taskStatusValidation.message });
     }
 
-    const tagsValidation = validateArrayOfNumbersInput('tags', tags, loggerName);
-    if (tagsValidation.statusCode !== validationPassStatusCode) {
-        return res.status(tagsValidation.statusCode).json({ error: tagsValidation.message });
-    }
-
+    console.log("?")
     if (tags) {
         const sentTags = tags as Tag[];
         const tagIds = sentTags.map(tag => tag.id);
+        console.log("sent tags", sentTags)
+        console.log("task put tag ids", tagIds)
         const tagsValidation = validateArrayOfNumbersInput('tags', tagIds, loggerName);
         if (tagsValidation.statusCode !== validationPassStatusCode) {
             return res.status(tagsValidation.statusCode).json({ error: tagsValidation.message });

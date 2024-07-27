@@ -31,15 +31,19 @@ function isArrayOfNumbersValidator(tags: any): boolean {
     return true; 
 }
 
-export function validateStringInput(stringType: string, name: string, loggerName: string) {
-    if (!name || !validator.isLength(name.trim(), { min: 1 } || name.length === 0)) {
-        const errorMessage = `${stringType} cannot be empty`;
-        formatMessageToServer(loggerName, errorMessage);
-        return {
-            statusCode: 400,
-            message: formatMessageToClient(errorMessage),
-        };
+export function validateStringInput(stringType: string, name: string, loggerName: string, canBeEmpty: boolean = false) {
+
+    if (canBeEmpty) {
+        if (!name || !validator.isLength(name.trim(), { min: 1 } || name.length === 0)) {
+            const errorMessage = `${stringType} cannot be empty`;
+            formatMessageToServer(loggerName, errorMessage);
+            return {
+                statusCode: 400,
+                message: formatMessageToClient(errorMessage),
+            };
+        }
     }
+ 
 
     if (!validator.isLength(name, { max: 255 })) {
         const errorMessage = `${stringType} is too long for ${name}`;
@@ -88,7 +92,8 @@ export function validateNumberInput(descriptor: string, num: any, clientMessage:
 
 export function validateArrayOfNumbersInput(descriptor: string, array:any[], loggerName: string) {
     if (!isArrayOfNumbersValidator(array)) {
-        formatMessageToServer(loggerName, descriptor + ' is not an array of numbers');
+        console.log("array", array);
+        formatMessageToServer(loggerName, descriptor + ' is not an array of numbers: ');
         return {
             statusCode: 400,
             message: formatMessageToClient(descriptor + ' is not an array of numbers'),

@@ -318,7 +318,7 @@ export const createMilestone = async (req: Request, res: Response) => {
 export const updateMilestoneId = async (req: Request, res: Response) => {
     const id = parseInt(req.params.id);
 
-    const { name, description, date, taskStatus_id, tags, roadmaps } = req.body;
+    const { name, description, date, tags, roadmaps } = req.body;
 
     const loggerName = 'MILESTONES PUT';
 
@@ -340,14 +340,9 @@ export const updateMilestoneId = async (req: Request, res: Response) => {
         return res.status(dateValidation.statusCode).json({ error: dateValidation.message });
     }
 
-    const taskStatusValidation = validateNumberInput('task status', taskStatus_id, 'task status is not valid', loggerName);
+    const taskStatusValidation = validateNumberInput('task status', putMilestone.taskStatus.id, 'task status is not valid', loggerName);
     if (taskStatusValidation.statusCode !== validationPassStatusCode) {
         return res.status(taskStatusValidation.statusCode).json({ error: taskStatusValidation.message });
-    }
-
-    const tagsValidation = validateArrayOfNumbersInput('tags', tags, loggerName);
-    if (tagsValidation.statusCode !== validationPassStatusCode) {
-        return res.status(tagsValidation.statusCode).json({ error: tagsValidation.message });
     }
 
     if (tags) {

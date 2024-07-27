@@ -7,6 +7,7 @@ import assigneeRoutes from "./routes/assigneeRoutes";
 import roadmapRoutes from "./routes/roadmapRoutes";
 import unitTypeRoutes from "./routes/unitTypeRoutes";
 import taskStatusRoutes from "./routes/taskStatusRoutes";
+import imageRoutes from "./routes/imageRoutes";
 
 dotenv.config();
 
@@ -24,6 +25,7 @@ app.use('/api/assignees', assigneeRoutes);
 app.use('/api/taskstatus', taskStatusRoutes);
 app.use('/api/roadmaps', roadmapRoutes);
 app.use('/api/unittypes', unitTypeRoutes);
+app.use('/api/upload', imageRoutes);
 
 
 app.get("/", (req: Request, res: Response) => {
