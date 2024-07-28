@@ -69,9 +69,14 @@ WHERE a.id = $1;`
 }
 
 export const createAssignee = async (req: Request, res: Response) => {
-    const { name, description } = req.body;
-
+    const { name, description, imageId } = req.body;
     const loggerName = 'ASSIGNEES POST';
+
+    // #region Validation
+    const numValidation = validateNumberInput('image id', imageId, 'image is not valid', loggerName);
+    if (numValidation.statusCode !== validationPassStatusCode) {
+        return res.status(numValidation.statusCode).json({ error: numValidation.message });
+    }
 
     const nameValidation = validateStringInput('Name', name, loggerName);
     if (nameValidation.statusCode !== validationPassStatusCode) {
@@ -82,6 +87,8 @@ export const createAssignee = async (req: Request, res: Response) => {
     if (descriptionValidationResult.statusCode !== validationPassStatusCode) {
         return res.status(descriptionValidationResult.statusCode).json({ error: descriptionValidationResult.message });
     }
+
+    // #endregion
 
     const q: string = `
         INSERT INTO Assignee (name, description)
@@ -97,15 +104,14 @@ export const createAssignee = async (req: Request, res: Response) => {
         `SELECT a.*, ai.image_id
 FROM Assignee a
 JOIN AssigneeImages ai ON a.id = ai.assignee_id
-WHERE a.id = $1;;
+WHERE a.id = $1;
     `
 
     try {
         const item = await queryPostgres(q, [name, description]); //make item
-        await queryPostgres(queryInsertIntoAssigneeImages, [item[0].id, 0]); //give it default image
+        await queryPostgres(queryInsertIntoAssigneeImages, [item[0].id, imageId]); //give it default image
         const fullAssignee = await queryPostgres(queryFullAssigneeData, [item[0].id]); //get item with image data together
 
-        console.log("full assignee", fullAssignee)
         const newItem = new Assignee(fullAssignee[0].name, fullAssignee[0].description, fullAssignee[0].id, fullAssignee[0].type_id, fullAssignee[0].image_id);
         
         return res.status(201).json(newItem);
@@ -119,14 +125,19 @@ WHERE a.id = $1;;
 export const updateAssigneeId = async (req: Request, res: Response) => { 
     const id = parseInt(req.params.id);
 
-    const { name, description, imageId } = req.body; //TODO check if can do this in frontend
+    const { name, description, imageId } = req.body; 
 
     const loggerName = 'ASSIGNEES PUT';
-    console.log("image id", imageId)
+
     // #region Validation
     const numValidation = validateNumberInput('id', id, 'id is not valid', loggerName);
     if (numValidation.statusCode !== validationPassStatusCode) {
         return res.status(numValidation.statusCode).json({ error: numValidation.message });
+    }
+
+    const imageIdValidation = validateNumberInput('image id', imageId, 'image is not valid', loggerName);
+    if (imageIdValidation.statusCode !== validationPassStatusCode) {
+        return res.status(imageIdValidation.statusCode).json({ error: imageIdValidation.message });
     }
 
     const nameValidation = validateStringInput('Name', name, loggerName);
