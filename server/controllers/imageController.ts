@@ -15,10 +15,14 @@ export const uploadImage = async (req: Request, res: Response) => {
 
     const { originalname, buffer } = req.file;
 
-    const q = 'INSERT INTO images (filename, image_data) VALUES ($1, $2)'
+    const q = `INSERT INTO images (filename, image_data)
+    VALUES($1, $2)
+RETURNING id;`
+
     try {
-        await queryPostgres(q, [originalname, buffer]);
-        res.send('File uploaded successfully.');
+        const result = await queryPostgres(q, [originalname, buffer]);
+        console.log('result', result)
+         res.json(result[0].id);
     } catch (error) {
         console.error('Error inserting file into database:', error);
         res.status(500).send('Server error.');

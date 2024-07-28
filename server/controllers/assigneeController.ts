@@ -119,10 +119,10 @@ WHERE a.id = $1;;
 export const updateAssigneeId = async (req: Request, res: Response) => { 
     const id = parseInt(req.params.id);
 
-    const { name, description } = req.body; //TODO check if can do this in frontend
+    const { name, description, imageId } = req.body; //TODO check if can do this in frontend
 
     const loggerName = 'ASSIGNEES PUT';
-
+    console.log("image id", imageId)
     // #region Validation
     const numValidation = validateNumberInput('id', id, 'id is not valid', loggerName);
     if (numValidation.statusCode !== validationPassStatusCode) {
@@ -155,7 +155,7 @@ WHERE a.id = $1;`
     try {
         const item = await queryPostgres(q, [name, description]);
         const tempImageId = 0;
-        await queryPostgres(queryUpdateAssigneeImages, [tempImageId, id]);
+        await queryPostgres(queryUpdateAssigneeImages, [imageId, id]);
         const fullAssignee = await queryPostgres(queryFullAssigneeData, [id]); //get item with image data together
 
         const updatedItem = new Assignee(fullAssignee[0].name, fullAssignee[0].description, fullAssignee[0].id, fullAssignee[0].type_id, fullAssignee[0].image_id);
