@@ -210,7 +210,7 @@ export const createMilestone = async (req: Request, res: Response) => {
         return res.status(nameValidation.statusCode).json({ error: nameValidation.message });
     }
 
-    const descriptionValidationResult = validateStringInput('Description', description, loggerName);
+    const descriptionValidationResult = validateStringInput('Description', description, loggerName, false);
     if (descriptionValidationResult.statusCode !== validationPassStatusCode) {
         return res.status(descriptionValidationResult.statusCode).json({ error: descriptionValidationResult.message });
     }
@@ -331,7 +331,7 @@ export const updateMilestoneId = async (req: Request, res: Response) => {
         return res.status(nameValidation.statusCode).json({ error: nameValidation.message });
     }
 
-    const descriptionValidationResult = validateStringInput('Description', description, loggerName);
+    const descriptionValidationResult = validateStringInput('Description', description, loggerName, false);
     if (descriptionValidationResult.statusCode !== validationPassStatusCode) {
         return res.status(descriptionValidationResult.statusCode).json({ error: descriptionValidationResult.message });
     }

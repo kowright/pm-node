@@ -1,13 +1,14 @@
 
 //for distinguishing logs from backend on the frontend
-export function formatMessageToClient(text: string): string;
-export function formatMessageToClient(text: string, err: any): string;
-export function formatMessageToClient(text: string, err?: any): string {
-    if (err !== undefined) {
-        return `[SERVER] ${text} | ${err}`;
-    } else {
-        return `[SERVER] ${text}`;
-    }
+/*export function formatMessageToClient(text: string): string;
+export function formatMessageToClient(text: string, err: any): string;*/
+export function formatMessageToClient(text: string, err?: any): { error: string } {
+    // Construct the error message
+    const errorMessage = err !== undefined
+        ? `[SERVER] ${text} | ${err}`
+        : `[SERVER] ${text}`;
+
+    return { error: errorMessage };
 }
 
 //for stack trace

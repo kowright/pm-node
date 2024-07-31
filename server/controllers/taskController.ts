@@ -236,7 +236,7 @@ export const createTask = async (req: Request, res: Response) => {
         return res.status(nameValidation.statusCode).json({ error: nameValidation.message });
     }
 
-    const descriptionValidationResult = validateStringInput('Description', description, loggerName);
+    const descriptionValidationResult = validateStringInput('Description', description, loggerName, false);
     if (descriptionValidationResult.statusCode !== validationPassStatusCode) {
         return res.status(descriptionValidationResult.statusCode).json({ error: descriptionValidationResult.message });
     }
@@ -434,7 +434,7 @@ export const updateTaskId = async (req: Request, res: Response) => {
         return res.status(nameValidation.statusCode).json({ error: nameValidation.message });
     }
 
-    const descriptionValidationResult = validateStringInput('Description', description, loggerName);
+    const descriptionValidationResult = validateStringInput('Description', description, loggerName, false);
     if (descriptionValidationResult.statusCode !== validationPassStatusCode) {
         return res.status(descriptionValidationResult.statusCode).json({ error: descriptionValidationResult.message });
     }
@@ -454,12 +454,10 @@ export const updateTaskId = async (req: Request, res: Response) => {
         return res.status(taskStatusValidation.statusCode).json({ error: taskStatusValidation.message });
     }
 
-    console.log("?")
     if (tags) {
         const sentTags = tags as Tag[];
         const tagIds = sentTags.map(tag => tag.id);
-        console.log("sent tags", sentTags)
-        console.log("task put tag ids", tagIds)
+  
         const tagsValidation = validateArrayOfNumbersInput('tags', tagIds, loggerName);
         if (tagsValidation.statusCode !== validationPassStatusCode) {
             return res.status(tagsValidation.statusCode).json({ error: tagsValidation.message });

@@ -21,7 +21,6 @@ RETURNING id;`
 
     try {
         const result = await queryPostgres(q, [originalname, buffer]);
-        console.log('result', result)
          res.json(result[0].id);
     } catch (error) {
         console.error('Error inserting file into database:', error);
@@ -36,7 +35,6 @@ export const getImage = async (req: Request, res: Response) => {
 
     try {
         const result = await queryPostgres(q, [id]);
-        console.log("getImage", result)
         const image = result[0];
 
         if (!image) {
@@ -50,26 +48,3 @@ export const getImage = async (req: Request, res: Response) => {
         res.status(500).send('Server error.');
     }
 }
-
-/*export const getAssignees = async (req: Request, res: Response) => {
-    const loggerName = 'ASSIGNEES GET';
-
-    const q: string = formatSelectAllFromTable('Assignee');
-
-    let list: any[] = [];
-
-    try {
-        list = await queryPostgres(q);
-    } catch (err) {
-        const { statusCode, message } = formatQueryAllUnitsErrorMessage('tags', loggerName, err);
-        return res.status(statusCode).send(message);
-    }
-
-    const newList: Assignee[] = [];
-    list.map(a => {
-        newList.push(new Assignee(a.name, a.description, a.id, a.type_id))
-    });
-
-    return res.status(200).send(newList);
-}
-*/

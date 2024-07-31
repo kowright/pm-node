@@ -83,7 +83,7 @@ export const createAssignee = async (req: Request, res: Response) => {
         return res.status(nameValidation.statusCode).json({ error: nameValidation.message });
     }
 
-    const descriptionValidationResult = validateStringInput('Description', description, loggerName);
+    const descriptionValidationResult = validateStringInput('Description', description, loggerName, false);
     if (descriptionValidationResult.statusCode !== validationPassStatusCode) {
         return res.status(descriptionValidationResult.statusCode).json({ error: descriptionValidationResult.message });
     }
@@ -145,7 +145,7 @@ export const updateAssigneeId = async (req: Request, res: Response) => {
         return res.status(nameValidation.statusCode).json({ error: nameValidation.message });
     }
 
-    const descriptionValidationResult = validateStringInput('Description', description, loggerName);
+    const descriptionValidationResult = validateStringInput('Description', description, loggerName, false);
     if (descriptionValidationResult.statusCode !== validationPassStatusCode) {
         return res.status(descriptionValidationResult.statusCode).json({ error: descriptionValidationResult.message });
     }
@@ -198,6 +198,7 @@ export const deleteAssigneeId = async (req: Request, res: Response) => {
     
     try {
         await queryPostgres(queryDeleteFromAssigneeImages, [id]);
+
         await queryPostgres(q);
 
         return res.status(200).json('deleted');

@@ -61,7 +61,7 @@ export const createTaskStatus = async (req: Request, res: Response) => {
         return res.status(nameValidation.statusCode).json({ error: nameValidation.message });
     }
 
-    const descriptionValidationResult = validateStringInput('Description', description, loggerName);
+    const descriptionValidationResult = validateStringInput('Description', description, loggerName, false);
     if (descriptionValidationResult.statusCode !== validationPassStatusCode) {
         return res.status(descriptionValidationResult.statusCode).json({ error: descriptionValidationResult.message });
     }
@@ -103,7 +103,7 @@ export const updateTaskStatusId = async (req: Request, res: Response) => {
         return res.status(nameValidation.statusCode).json({ error: nameValidation.message });
     }
 
-    const descriptionValidationResult = validateStringInput('Description', description, loggerName, true);
+    const descriptionValidationResult = validateStringInput('Description', description, loggerName, false);
     if (descriptionValidationResult.statusCode !== validationPassStatusCode) {
         return res.status(descriptionValidationResult.statusCode).json({ error: descriptionValidationResult.message });
     }

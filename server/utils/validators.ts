@@ -31,9 +31,9 @@ function isArrayOfNumbersValidator(tags: any): boolean {
     return true; 
 }
 
-export function validateStringInput(stringType: string, name: string, loggerName: string, canBeEmpty: boolean = false) {
+export function validateStringInput(stringType: string, name: string, loggerName: string, cannotBeEmpty: boolean = true) {
 
-    if (canBeEmpty) {
+    if (cannotBeEmpty) {
         if (!name || !validator.isLength(name.trim(), { min: 1 } || name.length === 0)) {
             const errorMessage = `${stringType} cannot be empty`;
             formatMessageToServer(loggerName, errorMessage);
